@@ -43,6 +43,18 @@ docs: READMEにセットアップ手順を追加
 chore: ESLintの設定を追加
 ```
 
+### Claude Codeを使用したコミット
+
+Claude Codeを使用してコミットを作成する場合は、必ず`Co-Authored-By`を含めてください。
+
+```
+add: ユーザー認証機能を追加
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+これにより、AIが作成したコミットであることが明確になります。
+
 ## Pull Request（PR）
 
 PRのタイトルとボディは**日本語**で**シンプル**に書いてください。
