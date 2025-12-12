@@ -1,0 +1,26 @@
+name: Auto Assign Commit Authors
+
+# This workflow automatically assigns PRs to the commit authors.
+# Triggered when a PR is opened and when new commits are pushed.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  assign:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Assign PR to all commit authors
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const autoAssign = require('./.github/scripts/auto-assign.js');
+            await autoAssign({ github, context });
