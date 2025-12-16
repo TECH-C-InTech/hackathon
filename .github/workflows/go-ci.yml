@@ -10,6 +10,10 @@ permissions:
 jobs:
   go-ci:
     runs-on: ubuntu-slim
+    defaults:
+      run:
+        working-directory: backend
+
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -22,8 +26,6 @@ jobs:
         with:
           version: v2.7.2
           args: --timeout 5m --enable=gofmt
-          working-directory: backend
 
       - name: Run tests
         run: go test ./...
-        working-directory: backend
