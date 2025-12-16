@@ -1,0 +1,26 @@
+name: go-ci
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  go-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.5"
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.55
+          args: --timeout 5m --enable=gofmt
+
+      - name: Run tests
+        run: go test ./...
