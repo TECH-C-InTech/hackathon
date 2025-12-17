@@ -19,12 +19,12 @@ var (
 
 // Draw はおみくじ結果を表す。
 type Draw struct {
-	postID string
+	postID post.DarkPostID
 	result string
 }
 
 // New は Post ID と結果から Draw を生成する。
-func New(postID, result string) (*Draw, error) {
+func New(postID post.DarkPostID, result string) (*Draw, error) {
 	if postID == "" {
 		return nil, ErrEmptyPostID
 	}
@@ -51,7 +51,7 @@ func FromPost(p *post.Post, result string) (*Draw, error) {
 }
 
 // PostID は元となった Post の ID を返す。
-func (d *Draw) PostID() string {
+func (d *Draw) PostID() post.DarkPostID {
 	return d.postID
 }
 

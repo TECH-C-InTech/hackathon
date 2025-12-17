@@ -2,6 +2,9 @@ package post
 
 import "errors"
 
+// DarkPostID は闇投稿を一意に識別する ID。
+type DarkPostID string
+
 // Status は闇投稿の状態を表す。
 type Status string
 
@@ -21,13 +24,13 @@ var (
 
 // Post は闇投稿そのもの。
 type Post struct {
-	id      string
+	id      DarkPostID
 	content string
 	status  Status
 }
 
 // New は新しい闇投稿を pending 状態で作成する。
-func New(id, content string) (*Post, error) {
+func New(id DarkPostID, content string) (*Post, error) {
 	if content == "" {
 		return nil, ErrEmptyContent
 	}
@@ -40,7 +43,7 @@ func New(id, content string) (*Post, error) {
 }
 
 // Restore は既存の投稿を再構築する。
-func Restore(id, content string, status Status) (*Post, error) {
+func Restore(id DarkPostID, content string, status Status) (*Post, error) {
 	if content == "" {
 		return nil, ErrEmptyContent
 	}
@@ -56,7 +59,7 @@ func Restore(id, content string, status Status) (*Post, error) {
 }
 
 // ID は投稿の識別子を返す。
-func (p *Post) ID() string {
+func (p *Post) ID() DarkPostID {
 	return p.id
 }
 
