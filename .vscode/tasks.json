@@ -9,19 +9,7 @@
         "cwd": "${workspaceFolder}/frontend"
       },
       "isBackground": true,
-      "problemMatcher": {
-        "pattern": {
-          "regexp": "^(.*)$",
-          "file": 1,
-          "location": 2,
-          "message": 3
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".*",
-          "endsPattern": "(Local:|started server on)"
-        }
-      },
+      "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -36,19 +24,7 @@
         "cwd": "${workspaceFolder}/backend"
       },
       "isBackground": true,
-      "problemMatcher": {
-        "pattern": {
-          "regexp": "^(.*)$",
-          "file": 1,
-          "location": 2,
-          "message": 3
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".*",
-          "endsPattern": "(Listening and serving HTTP on)"
-        }
-      },
+      "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
