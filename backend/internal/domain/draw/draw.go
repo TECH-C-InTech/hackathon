@@ -24,9 +24,14 @@ type (
 	Status string
 )
 
+// Status の種類
 const (
-	StatusPending  Status = "pending"
+	// 整形直後で検証前の状態。
+	StatusPending Status = "pending"
+	// 検証済みで公開可能な状態。
 	StatusVerified Status = "verified"
+	// 整形結果に問題があり却下された状態。
+	StatusRejected Status = "rejected"
 )
 
 // Draw はおみくじ結果を表す。
