@@ -17,13 +17,23 @@ var (
 	ErrPostNotReady = errors.New("draw: post is not ready")
 )
 
-// 整形後のおみくじ本文。
-type FormattedContent string
+type (
+	// 整形後のおみくじ本文
+	FormattedContent string
+	// おみくじ結果の状態
+	Status string
+)
+
+const (
+	StatusPending  Status = "pending"
+	StatusVerified Status = "verified"
+)
 
 // Draw はおみくじ結果を表す。
 type Draw struct {
 	postID post.DarkPostID
 	result FormattedContent
+	status Status
 }
 
 // New は Post ID と結果から Draw を生成する。
@@ -38,6 +48,7 @@ func New(postID post.DarkPostID, result FormattedContent) (*Draw, error) {
 	return &Draw{
 		postID: postID,
 		result: result,
+		status: StatusPending,
 	}, nil
 }
 
@@ -61,4 +72,14 @@ func (d *Draw) PostID() post.DarkPostID {
 // Result はおみくじ結果の本文を返す。
 func (d *Draw) Result() FormattedContent {
 	return d.result
+}
+
+// Status はおみくじ結果の状態を返す。
+func (d *Draw) Status() Status {
+	return d.status
+}
+
+// MarkVerified は結果を検証済み状態へ遷移させる。
+func (d *Draw) MarkVerified() {
+	d.status = StatusVerified
 }

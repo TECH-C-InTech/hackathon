@@ -20,6 +20,9 @@ func TestNew(t *testing.T) {
 	if draw.Result() != FormattedContent("やさしい言葉") {
 		t.Fatalf("unexpected result: %s", string(draw.Result()))
 	}
+	if draw.Status() != StatusPending {
+		t.Fatalf("expected status pending but got %s", draw.Status())
+	}
 }
 
 func TestNew_EmptyResult(t *testing.T) {
@@ -61,5 +64,18 @@ func TestFromPost_NotReady(t *testing.T) {
 
 	if _, err := FromPost(p, FormattedContent("まだ早い")); err != ErrPostNotReady {
 		t.Fatalf("expected ErrPostNotReady but got %v", err)
+	}
+}
+
+func TestMarkVerified(t *testing.T) {
+	t.Parallel()
+
+	draw, err := New(post.DarkPostID("post-id"), FormattedContent("result"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	draw.MarkVerified()
+	if draw.Status() != StatusVerified {
+		t.Fatalf("expected status verified but got %s", draw.Status())
 	}
 }
