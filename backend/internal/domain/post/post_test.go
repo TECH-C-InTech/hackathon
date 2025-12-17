@@ -66,3 +66,32 @@ func TestRestore_InvalidStatus(t *testing.T) {
 		t.Fatalf("expected ErrInvalidStatus but got %v", err)
 	}
 }
+
+func TestUpdateContent(t *testing.T) {
+	t.Parallel()
+
+	p, err := New("id", "before")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := p.UpdateContent("after"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.Content() != "after" {
+		t.Fatalf("expected updated content but got %s", p.Content())
+	}
+}
+
+func TestUpdateContent_Empty(t *testing.T) {
+	t.Parallel()
+
+	p, err := New("id", "闇")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := p.UpdateContent(""); err != ErrEmptyContent {
+		t.Fatalf("expected ErrEmptyContent but got %v", err)
+	}
+}

@@ -65,6 +65,16 @@ func (p *Post) Content() string {
 	return p.content
 }
 
+// UpdateContent は投稿内容を更新する。
+func (p *Post) UpdateContent(content string) error {
+	if content == "" {
+		return ErrEmptyContent
+	}
+
+	p.content = content
+	return nil
+}
+
 // Status は現在の状態を返す。
 func (p *Post) Status() Status {
 	return p.status
