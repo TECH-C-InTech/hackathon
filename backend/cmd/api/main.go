@@ -1,6 +1,10 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+
+	"github.com/gin-gonic/gin"
+)
 
 func main() {
 	router := gin.Default()
@@ -9,5 +13,7 @@ func main() {
 			"message": "pong",
 		})
 	})
-	router.Run() // デフォルトで0.0.0.0:8080で待機します
+	if err := router.Run(); err != nil {
+		log.Fatalf("failed to run server: %v", err)
+	}
 }
