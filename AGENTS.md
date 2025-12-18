@@ -1,25 +1,32 @@
-# Agents 開発ガイドライン
+# codex 開発ガイドライン
 
-このプロジェクトでAgentsを使用する際のルールです。
+このプロジェクトでcodexを使用する際のルールです。
+
+## 必読ドキュメントと共通言語
+
+- 作業を開始する前に、必ずリポジトリ直下の `README.md` および `backend/README.md` を読み、前提と設計方針を把握してください。Codex も例外なく遵守すること。
+- Codex を含むすべてのエージェントは、日本語で質問・回答・コメントを行うこと。英語や他言語での応答は禁止です。
+
 
 ## ブランチ命名規則
 
 ブランチ名には必ずprefixを付けてください。
 
 ### 使用可能なprefix
-- `add` - 新機能追加
+- `feat` - 新機能追加
 - `fix` - バグ修正
-- `update` - 既存機能の更新
-- `refac` - リファクタリング
 - `docs` - ドキュメント
-- `chore` - その他（設定、ビルド、雑務など）
+- `refactor` - リファクタリング（機能変更なし）
+- `test` - テスト追加・修正
+- `ci` - CI関連
+- `chore` - その他（雑務、ツール設定など）
 
 ### 例
 ```
-add/user-authentication
+feat/user-authentication
 fix/login-button-crash
 update/error-handling
-refac/api-client
+refactor/api-client
 docs/readme-update
 chore/eslint-setup
 ```
@@ -27,6 +34,7 @@ chore/eslint-setup
 ## コミットメッセージ
 
 コミットメッセージは**簡潔**に書いてください。必ずprefixを付けてください。
+
 
 ### 形式
 ```
@@ -42,18 +50,6 @@ refac: APIクライアントのコードを整理
 docs: READMEにセットアップ手順を追加
 chore: ESLintの設定を追加
 ```
-
-### Agentsを使用したコミット
-
-Agentsを使用してコミットを作成する場合は、必ず`Co-Authored-By`を含めてください。
-
-```
-add: ユーザー認証機能を追加
-
-Co-authored-by: Codex (AI assistant) [codex-bot@noreply.example.com](mailto:codex-bot@noreply.example.com)
-```
-
-これにより、AIが作成したコミットであることが明確になります。
 
 ## Pull Request（PR）
 
