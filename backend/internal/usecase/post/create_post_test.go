@@ -28,16 +28,16 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 
 	cases := []testCase{
 		{
-			name:  "successfully creates post and enqueues job",
+			name:  "投稿保存とジョブ投入が成功する",
 			input: &CreatePostInput{DarkPostID: "abc123", Content: "闇"},
 			setupRepo: func() *stubPostRepository {
 				return &stubPostRepository{
 					createFunc: func(ctx context.Context, p *post.Post) error {
 						if p.ID() != post.DarkPostID("abc123") {
-							t.Fatalf("unexpected post id: %s", p.ID())
+							t.Fatalf("想定外の投稿ID: %s", p.ID())
 						}
 						if p.Content() != post.DarkContent("闇") {
-							t.Fatalf("unexpected content: %s", p.Content())
+							t.Fatalf("想定外の本文: %s", p.Content())
 						}
 						return nil
 					},
@@ -47,7 +47,7 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 				return &stubJobQueue{
 					enqueueFunc: func(ctx context.Context, id post.DarkPostID) error {
 						if id != post.DarkPostID("abc123") {
-							t.Fatalf("unexpected enqueue id: %s", id)
+							t.Fatalf("想定外のジョブ投入ID: %s", id)
 						}
 						return nil
 					},
@@ -56,7 +56,7 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			wantID: "abc123",
 		},
 		{
-			name:    "nil input",
+			name:    "入力がnilなら ErrNilInput",
 			input:   nil,
 			wantErr: ErrNilInput,
 			setupRepo: func() *stubPostRepository {
@@ -67,7 +67,7 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name: "post validation error surfaces",
+			name: "post.New のバリデーションエラーを返す",
 			input: &CreatePostInput{
 				DarkPostID: "abc123",
 				Content:    "",
@@ -81,7 +81,7 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name: "repository sentinel converted",
+			name: "リポジトリの重複エラーを変換する",
 			input: &CreatePostInput{
 				DarkPostID: "abc123",
 				Content:    "闇",
@@ -99,16 +99,16 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name: "repository general error bubbles",
+			name: "リポジトリでの一般的なエラーはそのまま返す",
 			input: &CreatePostInput{
 				DarkPostID: "abc123",
 				Content:    "闇",
 			},
-			wantErr: errors.New("repo boom"),
+			wantErr: errors.New("リポジトリで異常が発生"),
 			setupRepo: func() *stubPostRepository {
 				return &stubPostRepository{
 					createFunc: func(ctx context.Context, p *post.Post) error {
-						return errors.New("repo boom")
+						return errors.New("リポジトリで異常が発生")
 					},
 				}
 			},
@@ -117,7 +117,7 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name: "queue sentinel converted",
+			name: "ジョブキューの重複エラーを変換する",
 			input: &CreatePostInput{
 				DarkPostID: "abc123",
 				Content:    "闇",
@@ -135,19 +135,19 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name: "queue general error bubbles",
+			name: "ジョブキューの一般的なエラーはそのまま返す",
 			input: &CreatePostInput{
 				DarkPostID: "abc123",
 				Content:    "闇",
 			},
-			wantErr: errors.New("queue boom"),
+			wantErr: errors.New("ジョブキューで異常が発生"),
 			setupRepo: func() *stubPostRepository {
 				return &stubPostRepository{}
 			},
 			setupQueue: func() *stubJobQueue {
 				return &stubJobQueue{
 					enqueueFunc: func(ctx context.Context, id post.DarkPostID) error {
-						return errors.New("queue boom")
+						return errors.New("ジョブキューで異常が発生")
 					},
 				}
 			},
@@ -167,30 +167,30 @@ func TestCreatePostUsecase_Execute(t *testing.T) {
 
 			if tc.wantErr != nil {
 				if err == nil {
-					t.Fatalf("expected error %v, got nil", tc.wantErr)
+					t.Fatalf("エラー %v を期待したが nil", tc.wantErr)
 				}
 				if tc.wantErr.Error() != err.Error() {
-					t.Fatalf("unexpected error: want %v, got %v", tc.wantErr, err)
+					t.Fatalf("期待しないエラー: want %v, got %v", tc.wantErr, err)
 				}
 
 				if got != nil {
-					t.Fatalf("expected nil output, got %#v", got)
+					t.Fatalf("出力は nil を期待したが %#v", got)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("想定外のエラー: %v", err)
 			}
 
 			if got.DarkPostID != tc.wantID {
-				t.Fatalf("unexpected returned id: want %s, got %s", tc.wantID, got.DarkPostID)
+				t.Fatalf("返却IDが想定外: want %s, got %s", tc.wantID, got.DarkPostID)
 			}
 		})
 	}
 }
 
-// stubPostRepository implements repository.PostRepository for tests.
+// stubPostRepository は PostRepository の簡易モック。
 type stubPostRepository struct {
 	createFunc func(context.Context, *post.Post) error
 }
@@ -214,7 +214,7 @@ func (*stubPostRepository) Update(context.Context, *post.Post) error {
 	panic("not implemented")
 }
 
-// stubJobQueue implements queue.JobQueue for tests.
+// stubJobQueue は JobQueue の簡易モック。
 type stubJobQueue struct {
 	enqueueFunc func(context.Context, post.DarkPostID) error
 }
