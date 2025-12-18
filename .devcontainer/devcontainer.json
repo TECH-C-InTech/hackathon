@@ -1,0 +1,35 @@
+{
+  "name": "InTech - geekvol16",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24",
+      "pnpm": true
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.25"
+    }
+  },
+
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code @openai/codex && sudo chown -R vscode:vscode /home/vscode/.claude /home/vscode/.codex",
+
+  "mounts": [
+    "source=claude-config,target=/home/vscode/.claude,type=volume",
+    "source=codex-config,target=/home/vscode/.codex,type=volume"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "biomejs.biome",
+        "anthropic.claude-code",
+        "openai.chatgpt"
+      ]
+    }
+  },
+
+  "remoteUser": "vscode"
+}
