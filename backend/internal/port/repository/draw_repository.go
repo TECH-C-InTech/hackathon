@@ -21,4 +21,6 @@ var (
 type DrawRepository interface {
 	Create(ctx context.Context, d *draw.Draw) error
 	GetByPostID(ctx context.Context, postID post.DarkPostID) (*draw.Draw, error)
+	// ListReady は公開可能（verified）なおみくじ結果一覧を返す。
+	ListReady(ctx context.Context) ([]*draw.Draw, error)
 }
