@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrNilInput = errors.New("create_post: 入力が指定されていません")
-	ErrPostAlreadyExists = errors.New("create_post: 投稿がすでに存在します")
+	ErrNilInput            = errors.New("create_post: 入力が指定されていません")
+	ErrPostAlreadyExists   = errors.New("create_post: 投稿がすでに存在します")
 	ErrJobAlreadyScheduled = errors.New("create_post: 整形ジョブがすでに登録済みです")
 )
 
