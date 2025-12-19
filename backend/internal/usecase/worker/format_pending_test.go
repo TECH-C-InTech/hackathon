@@ -19,6 +19,8 @@ type stubPostRepository struct {
 	updated   *post.Post
 }
 
+var _ repository.PostRepository = (*stubPostRepository)(nil)
+
 func newStubPostRepository(p *post.Post) *stubPostRepository {
 	store := make(map[post.DarkPostID]*post.Post)
 	if p != nil {
@@ -60,6 +62,8 @@ type stubFormatter struct {
 	validateResult *llm.FormatResult
 	validateErr    error
 }
+
+var _ llm.Formatter = (*stubFormatter)(nil)
 
 func (f *stubFormatter) Format(ctx context.Context, req *llm.FormatRequest) (*llm.FormatResult, error) {
 	if f.formatErr != nil {
