@@ -7,16 +7,21 @@ import (
 	"testing"
 
 	"backend/internal/port/llm"
+	"backend/internal/config"
 
 	githubOpenAI "github.com/sashabaranov/go-openai"
 )
 
 type stubChatClient struct {
-	resp githubOpenAI.ChatCompletionResponse
-	err  error
+	resp        githubOpenAI.ChatCompletionResponse
+	err         error
+	capturedCtx context.Context
+	capturedReq githubOpenAI.ChatCompletionRequest
 }
 
 func (s *stubChatClient) CreateChatCompletion(ctx context.Context, req githubOpenAI.ChatCompletionRequest) (githubOpenAI.ChatCompletionResponse, error) {
+	s.capturedCtx = ctx
+	s.capturedReq = req
 	return s.resp, s.err
 }
 
@@ -73,6 +78,34 @@ func TestFormatterFormatInvalidRequest(t *testing.T) {
 	}
 }
 
+func TestFormatterFormatNilRequest(t *testing.T) {
+	f := &Formatter{client: &stubChatClient{}, model: "test"}
+	if _, err := f.Format(context.Background(), nil); !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format for nil request, got %v", err)
+	}
+}
+
+func TestFormatterFormatDefaultsContext(t *testing.T) {
+	client := &stubChatClient{
+		resp: githubOpenAI.ChatCompletionResponse{
+			Choices: []githubOpenAI.ChatCompletionChoice{{
+				Message: githubOpenAI.ChatCompletionMessage{Content: "ok"},
+			}},
+		},
+	}
+	f := &Formatter{client: client, model: "test"}
+
+	if _, err := f.Format(nil, &llm.FormatRequest{DarkPostID: "id", DarkContent: "text"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if client.capturedCtx == nil {
+		t.Fatalf("expected context to be defaulted")
+	}
+	if client.capturedReq.Model != "test" {
+		t.Fatalf("model not set in request: %v", client.capturedReq.Model)
+	}
+}
+
 func TestFormatterValidate(t *testing.T) {
 	f := &Formatter{}
 	result, err := f.Validate(context.Background(), &llm.FormatResult{
@@ -101,6 +134,27 @@ func TestFormatterValidateRejects(t *testing.T) {
 	}
 }
 
+func TestFormatterValidateNil(t *testing.T) {
+	f := &Formatter{}
+	if _, err := f.Validate(context.Background(), nil); !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format, got %v", err)
+	}
+}
+
+func TestFormatterValidateEmptyContent(t *testing.T) {
+	f := &Formatter{}
+	result, err := f.Validate(context.Background(), &llm.FormatResult{
+		DarkPostID:       "post",
+		FormattedContent: "   ",
+	})
+	if !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format for empty content, got %v", err)
+	}
+	if result.Status != "rejected" {
+		t.Fatalf("expected rejected status")
+	}
+}
+
 func TestExtractFirstText(t *testing.T) {
 	text, err := extractFirstText(githubOpenAI.ChatCompletionResponse{
 		Choices: []githubOpenAI.ChatCompletionChoice{{
@@ -109,6 +163,29 @@ func TestExtractFirstText(t *testing.T) {
 	})
 	if err != nil || text != "こんにちは" {
 		t.Fatalf("unexpected result: %q %v", text, err)
+	}
+}
+
+func TestExtractFirstTextSkipsEmpty(t *testing.T) {
+	text, err := extractFirstText(githubOpenAI.ChatCompletionResponse{
+		Choices: []githubOpenAI.ChatCompletionChoice{
+			{Message: githubOpenAI.ChatCompletionMessage{Content: "   "}},
+			{Message: githubOpenAI.ChatCompletionMessage{Content: "text"}},
+		},
+	})
+	if err != nil || text != "text" {
+		t.Fatalf("expected to skip empty parts: %q %v", text, err)
+	}
+}
+
+func TestExtractFirstTextAllEmpty(t *testing.T) {
+	_, err := extractFirstText(githubOpenAI.ChatCompletionResponse{
+		Choices: []githubOpenAI.ChatCompletionChoice{{
+			Message: githubOpenAI.ChatCompletionMessage{Content: "   "},
+		}},
+	})
+	if !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format when all choices empty")
 	}
 }
 
@@ -128,12 +205,55 @@ func TestValidateFormatRequest(t *testing.T) {
 	}
 }
 
+func TestValidateFormatRequestNil(t *testing.T) {
+	if err := validateFormatRequest(nil); !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format for nil request")
+	}
+}
+
+func TestValidateFormatRequestEmptyContent(t *testing.T) {
+	if err := validateFormatRequest(&llm.FormatRequest{DarkPostID: "id", DarkContent: "   "}); !errors.Is(err, llm.ErrInvalidFormat) {
+		t.Fatalf("expected invalid format for empty content")
+	}
+}
+
 func TestShouldReject(t *testing.T) {
 	if reason, ok := shouldReject("visit http://example.com"); !ok || reason == "" {
 		t.Fatalf("expected rejection for URL")
 	}
 	if reason, ok := shouldReject("clean text"); ok || reason != "" {
 		t.Fatalf("expected acceptance, got %v %v", ok, reason)
+	}
+}
+
+func TestShouldRejectKeywords(t *testing.T) {
+	if reason, ok := shouldReject("Please do not suicide"); !ok || !strings.Contains(reason, "suicide") {
+		t.Fatalf("expected keyword rejection, reason=%v", reason)
+	}
+}
+
+func TestNewFormatterRequiresKey(t *testing.T) {
+	if _, err := NewFormatter(" ", "model", ""); err == nil {
+		t.Fatalf("expected error when key is missing")
+	}
+}
+
+func TestNewFormatterDefaults(t *testing.T) {
+	f, err := NewFormatter("dummy", "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.model != config.DefaultOpenAIModel {
+		t.Fatalf("expected default model, got %s", f.model)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close should succeed")
+	}
+}
+
+func TestNewFormatterWithBaseURL(t *testing.T) {
+	if _, err := NewFormatter("dummy", "gpt-test", "https://example.com"); err != nil {
+		t.Fatalf("unexpected error with baseURL: %v", err)
 	}
 }
 
