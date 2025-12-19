@@ -63,7 +63,7 @@ func provideDrawRepository(ctx context.Context, infra *Infra) (repository.DrawRe
 	}
 
 	repo := memory.NewInMemoryDrawRepository()
-	if err := seedDraws(repo, mode); err != nil {
+	if err := seedDraws(ctx, repo, mode); err != nil {
 		return nil, err
 	}
 	return repo, nil
@@ -78,7 +78,7 @@ func newFirestoreDrawRepository(infra *Infra) (repository.DrawRepository, error)
 	return firestoreadapter.NewDrawRepository(client)
 }
 
-func seedDraws(repo repository.DrawRepository, mode string) error {
+func seedDraws(ctx context.Context, repo repository.DrawRepository, mode string) error {
 	samples := []struct {
 		id      string
 		content string
@@ -102,7 +102,7 @@ func seedDraws(repo repository.DrawRepository, mode string) error {
 		if sample.ready {
 			draw.MarkVerified()
 		}
-		if err := repo.Create(context.Background(), draw); err != nil && err != repository.ErrDrawAlreadyExists {
+		if err := repo.Create(ctx, draw); err != nil && err != repository.ErrDrawAlreadyExists {
 			return err
 		}
 	}
