@@ -3,17 +3,23 @@
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
 
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "24",
       "pnpm": true
     },
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.25"
+    },
+    "ghcr.io/aquaproj/devcontainer-features/aqua-installer:0.1.6": {
+      "aqua_version": "v2.55.3"
     }
   },
 
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code @openai/codex && sudo chown -R vscode:vscode /home/vscode/.claude /home/vscode/.codex",
+  "postCreateCommand": "aqua i && npm install -g @anthropic-ai/claude-code @openai/codex && sudo chown -R vscode:vscode /home/vscode/.claude /home/vscode/.codex",
+
+  "remoteEnv": {
+    "PATH": "/home/vscode/.local/share/aquaproj-aqua/bin:${containerEnv:PATH}"
+  },
 
   "mounts": [
     "source=claude-config,target=/home/vscode/.claude,type=volume",
@@ -26,7 +32,8 @@
         "golang.go",
         "biomejs.biome",
         "anthropic.claude-code",
-        "openai.chatgpt"
+        "openai.chatgpt",
+        "hashicorp.terraform"
       ]
     }
   },
