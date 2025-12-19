@@ -16,8 +16,8 @@ import (
 
 const (
 	defaultModelName      = "gemini-2.5-flash"
-	maxFormattedLength    = 400
-	minFormattedLength    = 12
+	maxFormattedLength    = 150
+	minFormattedLength    = 120
 	fortunePrefix         = "今日の闇みくじ:"
 	expectedSentenceCount = 3
 )
