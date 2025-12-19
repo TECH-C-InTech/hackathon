@@ -141,10 +141,15 @@ func seedPosts(ctx context.Context, repo repository.PostRepository) (post.DarkPo
 	return sample.ID(), nil
 }
 
+/**
+ * 閉じ処理を順番に呼び出し、最初に失敗したものを覚えて返す。
+ */
 func mergeCloseError(current error, label string, fn func() error) error {
 	if fn == nil {
+		// 閉じる対象がなければそのまま返す
 		return current
 	}
+	// 後片付けの失敗はログに残しつつ先頭エラーを優先
 	if err := fn(); err != nil {
 		log.Printf("%s close error: %v", label, err)
 		if current == nil {
@@ -154,11 +159,16 @@ func mergeCloseError(current error, label string, fn func() error) error {
 	return current
 }
 
+/**
+ * 環境変数から Gemini の鍵とモデルを読み込み、整形器とクローズ関数を返す。
+ */
 func newGeminiFormatter(ctx context.Context) (llm.Formatter, func() error, error) {
+	// 鍵とモデル指定に不足がないかを先に確かめる
 	cfg, err := config.LoadGeminiConfigFromEnv()
 	if err != nil {
 		return nil, nil, fmt.Errorf("load gemini config: %w", err)
 	}
+	// 構築済みクライアントを整形器として扱い、Close をそのまま返す
 	formatter, err := formatterCtor(ctx, cfg.APIKey, cfg.Model)
 	if err != nil {
 		return nil, nil, fmt.Errorf("new gemini formatter: %w", err)
@@ -166,11 +176,16 @@ func newGeminiFormatter(ctx context.Context) (llm.Formatter, func() error, error
 	return formatter, formatter.Close, nil
 }
 
+/**
+ * OpenAI 用の設定を取り込み、API クライアントを包んだ整形器を作る。
+ */
 func newOpenAIFormatter() (llm.Formatter, func() error, error) {
+	// OpenAI 側の鍵やモデル、任意 BaseURL を取得
 	cfg, err := config.LoadOpenAIConfigFromEnv()
 	if err != nil {
 		return nil, nil, fmt.Errorf("load openai config: %w", err)
 	}
+	// SDK から生成した整形器とクローズ処理を返す
 	formatter, closeFn, err := openaiFormatterFactory(cfg.APIKey, cfg.Model, cfg.BaseURL)
 	if err != nil {
 		return nil, nil, fmt.Errorf("new openai formatter: %w", err)
