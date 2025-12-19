@@ -21,7 +21,9 @@ func TestLoadLLMProvider(t *testing.T) {
 		t.Fatalf("default fallback failed, got %s", got)
 	}
 
-	os.Unsetenv(envLLMProvider)
+	if err := os.Unsetenv(envLLMProvider); err != nil {
+		t.Fatalf("failed to unset env: %v", err)
+	}
 	if got := LoadLLMProvider(); got != "openai" {
 		t.Fatalf("expected openai when unset, got %s", got)
 	}

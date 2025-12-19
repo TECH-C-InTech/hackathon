@@ -95,7 +95,7 @@ func TestFormatterFormatDefaultsContext(t *testing.T) {
 	}
 	f := &Formatter{client: client, model: "test"}
 
-	if _, err := f.Format(nil, &llm.FormatRequest{DarkPostID: "id", DarkContent: "text"}); err != nil {
+	if _, err := f.Format(context.TODO(), &llm.FormatRequest{DarkPostID: "id", DarkContent: "text"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if client.capturedCtx == nil {
