@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"backend/internal/port/llm"
 	"backend/internal/config"
+	"backend/internal/port/llm"
 
 	githubOpenAI "github.com/sashabaranov/go-openai"
 )
