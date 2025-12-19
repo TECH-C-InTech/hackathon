@@ -205,6 +205,12 @@ API / Worker から Firestore を利用する際は、`internal/app` が 1 度�
 | `GOOGLE_APPLICATION_CREDENTIALS` | 本番・Staging などで用いるサービスアカウント JSON のパス（エミュレータ利用時は不要） |
 | `FIRESTORE_EMULATOR_HOST` | Firestore Emulator を利用する場合のホスト名（例: `localhost:8080`） |
 | `WORKER_POST_REPOSITORY` | `firestore` を指定するとワーカーが Firestore PostRepository を利用（未設定時はメモリ実装） |
+| `GEMINI_API_KEY` | Gemini formatter を使用する際の API キー |
+| `GEMINI_MODEL` | 利用する Gemini モデル名（未設定時は `gemini-2.5-flash`） |
+| `OPENAI_API_KEY` | OpenAI formatter を使用する際の API キー |
+| `OPENAI_MODEL` | 利用する OpenAI モデル名（未設定時は `gpt-4o-mini`） |
+| `OPENAI_BASE_URL` | OpenAI 互換エンドポイントを使う場合の Base URL（通常は空で OK） |
+| `LLM_PROVIDER` | `openai` / `gemini` を指定して使用する LLM を切り替え（未設定時は `openai`） |
 
 `GOOGLE_CLOUD_PROJECT` が未設定の場合は Firestore クライアントは初期化されません（メモリ実装のみで動作）。
 
@@ -249,15 +255,35 @@ go run ./cmd/seed
 
 ## ワーカー起動方法
 
-Gemini API キーなどを `.env`（`backend/.env.example` を参照）に設定した上で、以下のコマンドで整形ワーカーを起動できます。
+`.env`（`backend/.env.example`）に LLM の API キー等を設定した上で、以下のコマンドで整形ワーカーを起動できます。
 
 ```
 cd backend
 go run ./cmd/worker
 ```
 
-整形キューを監視し、取得した投稿を Gemini で整形して公開準備へ進めます。
-FireStore を接続する場合は `WORKER_POST_REPOSITORY=firestore` を設定し、Firestore クライアントが初期化されている必要があります。
+整形キューを監視し、`LLM_PROVIDER` で指定した LLM（`openai` が既定）で整形して公開準備へ進めます。`LLM_PROVIDER=gemini` を設定すると Gemini 実装に切り替わります。
+Firestore を接続する場合は `WORKER_POST_REPOSITORY=firestore` を設定し、Firestore クライアントが初期化されている必要があります。
+
+### LLM ごとの設定例
+
+1. **OpenAI を使う場合（既定）**
+   ```bash
+   cd backend
+   export OPENAI_API_KEY=sk-xxx
+   export OPENAI_MODEL=gpt-4o-mini # 省略可
+   export LLM_PROVIDER=openai
+   go run ./cmd/worker
+   ```
+
+2. **Gemini を使う場合**
+   ```bash
+   cd backend
+   export GEMINI_API_KEY=xxxx
+   export GEMINI_MODEL=gemini-2.5-flash # 省略可
+   export LLM_PROVIDER=gemini
+   go run ./cmd/worker
+   ```
 
 ---
 

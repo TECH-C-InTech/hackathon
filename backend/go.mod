@@ -6,6 +6,8 @@ require (
 	cloud.google.com/go/firestore v1.20.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/generative-ai-go v0.20.1
+	github.com/joho/godotenv v1.5.1
+	github.com/sashabaranov/go-openai v1.41.2
 	google.golang.org/api v0.258.0
 	google.golang.org/grpc v1.77.0
 )
@@ -36,7 +38,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

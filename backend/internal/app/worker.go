@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"backend/internal/adapter/llm/gemini"
+	openaiFormatter "backend/internal/adapter/llm/openai"
 	queueMemory "backend/internal/adapter/queue/memory"
 	repoFirestore "backend/internal/adapter/repository/firestore"
 	repoMemory "backend/internal/adapter/repository/memory"
@@ -32,12 +33,25 @@ type WorkerContainer struct {
 
 var formatterCtor = gemini.NewFormatter
 
-var formatterFactory = func(ctx context.Context, apiKey, model string) (llm.Formatter, func() error, error) {
-	formatter, err := formatterCtor(ctx, apiKey, model)
+// OpenAI 用の整形器を作り、後片付け手順もあわせて返す
+var openaiFormatterFactory = func(apiKey, model, baseURL string) (llm.Formatter, func() error, error) {
+	formatter, err := openaiFormatter.NewFormatter(apiKey, model, baseURL)
 	if err != nil {
 		return nil, nil, err
 	}
 	return formatter, formatter.Close, nil
+}
+
+// 環境変数 LLM_PROVIDER に応じて利用する整形器を切り替える
+var formatterFactory = func(ctx context.Context) (llm.Formatter, func() error, error) {
+	switch config.LoadLLMProvider() {
+	case "gemini":
+		return newGeminiFormatter(ctx)
+	case "openai":
+		fallthrough
+	default:
+		return newOpenAIFormatter()
+	}
 }
 var postRepositoryFactory = newPostRepository
 var seedPostsFunc = seedPosts
@@ -60,6 +74,7 @@ func NewWorkerContainer(ctx context.Context) (*WorkerContainer, error) {
 		return nil, err
 	}
 	var initialID post.DarkPostID
+	// メモリリポジトリ利用時のみサンプル投稿を投入しておく
 	if seedLocal {
 		initialID, err = seedPostsFunc(ctx, postRepo)
 		if err != nil {
@@ -69,11 +84,7 @@ func NewWorkerContainer(ctx context.Context) (*WorkerContainer, error) {
 
 	jobQueue := queueMemory.NewInMemoryJobQueue(10)
 
-	geminiCfg, err := config.LoadGeminiConfigFromEnv()
-	if err != nil {
-		return nil, fmt.Errorf("load gemini config: %w", err)
-	}
-	formatter, closeFormatter, err := formatterFactory(ctx, geminiCfg.APIKey, geminiCfg.Model)
+	formatter, closeFormatter, err := formatterFactory(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("init formatter: %w", err)
 	}
@@ -130,10 +141,15 @@ func seedPosts(ctx context.Context, repo repository.PostRepository) (post.DarkPo
 	return sample.ID(), nil
 }
 
+/**
+ * 閉じ処理を順番に呼び出し、最初に失敗したものを覚えて返す。
+ */
 func mergeCloseError(current error, label string, fn func() error) error {
 	if fn == nil {
+		// 閉じる対象がなければそのまま返す
 		return current
 	}
+	// 後片付けの失敗はログに残しつつ先頭エラーを優先
 	if err := fn(); err != nil {
 		log.Printf("%s close error: %v", label, err)
 		if current == nil {
@@ -141,6 +157,40 @@ func mergeCloseError(current error, label string, fn func() error) error {
 		}
 	}
 	return current
+}
+
+/**
+ * 環境変数から Gemini の鍵とモデルを読み込み、整形器とクローズ関数を返す。
+ */
+func newGeminiFormatter(ctx context.Context) (llm.Formatter, func() error, error) {
+	// 鍵とモデル指定に不足がないかを先に確かめる
+	cfg, err := config.LoadGeminiConfigFromEnv()
+	if err != nil {
+		return nil, nil, fmt.Errorf("load gemini config: %w", err)
+	}
+	// 構築済みクライアントを整形器として扱い、Close をそのまま返す
+	formatter, err := formatterCtor(ctx, cfg.APIKey, cfg.Model)
+	if err != nil {
+		return nil, nil, fmt.Errorf("new gemini formatter: %w", err)
+	}
+	return formatter, formatter.Close, nil
+}
+
+/**
+ * OpenAI 用の設定を取り込み、API クライアントを包んだ整形器を作る。
+ */
+func newOpenAIFormatter() (llm.Formatter, func() error, error) {
+	// OpenAI 側の鍵やモデル、任意 BaseURL を取得
+	cfg, err := config.LoadOpenAIConfigFromEnv()
+	if err != nil {
+		return nil, nil, fmt.Errorf("load openai config: %w", err)
+	}
+	// SDK から生成した整形器とクローズ処理を返す
+	formatter, closeFn, err := openaiFormatterFactory(cfg.APIKey, cfg.Model, cfg.BaseURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("new openai formatter: %w", err)
+	}
+	return formatter, closeFn, nil
 }
 
 /**
