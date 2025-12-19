@@ -192,3 +192,16 @@ curl -i localhost:8080/draws/random
 | (空) / `default` | `DRAW_REPOSITORY_MODE=default go run ./cmd/api` | Verified が存在するため `200 OK` |
 | `empty` | `DRAW_REPOSITORY_MODE=empty go run ./cmd/api` | Verified が無く `404 Not Found`（`message=no verified draws available`） |
 | `error` | `DRAW_REPOSITORY_MODE=error go run ./cmd/api` | リポジトリ強制エラーで `500 Internal Server Error` |
+
+---
+
+## エラーコメント規約
+
+- 日本語で記述すること
+
+- 1文で理解できるように
+
+- 例
+```
+errors.New("create_post: 入力が指定されていません")
+```
