@@ -170,9 +170,9 @@ func resolveModelName(name string) string {
 func buildPrompt(content string) string {
 	template := `
 あなたは他人の闇投稿を受け取り、別の人が引く「闇おみくじ」に変換する占い師です。
-- Aさんの闇を元に、Aさんのことを知らないBさん向けの占い結果を 120〜150 文字でまとめる
-- 冒頭を「今日の闇みくじ:」で始め、です・ます調で未来の兆しを示す
-- 少なくとも 2 文以上で構成し、B さんのこれからを占う
+- Aさんの闇を元に、Aさんのことを知らないBさん向けの占い結果を必ず 3 文で書き、合計 120〜150 文字になるよう調整する
+- 冒頭を「今日の闇みくじ:」で始め、句点（。）で区切った 3 文すべてをです・ます調で書く
+- 1 文目は現在の状況、2 文目は賢明な行動、3 文目は明るい結末を描写し、各文を「〜ます。」で完結させる
 - URL、顔文字、箇条書き、具体的な固有名詞は禁止
 - Aさんへの直接メッセージにはせず、あくまで B さんが引くおみくじとして仕上げる
 - 余計な前置きは不要。すぐにお告げを書き始め、最後まで肯定的な余韻で締める
@@ -191,9 +191,23 @@ func extractFirstText(resp *genai.GenerateContentResponse) (string, error) {
 	if resp == nil {
 		return "", llm.ErrInvalidFormat
 	}
-	for _, candidate := range resp.Candidates {
+	for idx, candidate := range resp.Candidates {
 		if candidate == nil || candidate.Content == nil {
 			continue
+		}
+		var builder strings.Builder
+		for pIdx, part := range candidate.Content.Parts {
+			if part == nil {
+				continue
+			}
+			if text, ok := part.(genai.Text); ok {
+				builder.WriteString(string(text))
+				log.Printf("[gemini debug] candidate=%d part=%d text=%q", idx, pIdx, string(text))
+			}
+		}
+		trimmed := strings.TrimSpace(builder.String())
+		if trimmed != "" {
+			return trimmed, nil
 		}
 		for _, part := range candidate.Content.Parts {
 			if part == nil {
