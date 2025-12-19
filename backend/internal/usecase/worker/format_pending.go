@@ -16,6 +16,12 @@ var (
 	ErrEmptyPostID = errors.New("format_pending: post id is empty")
 	// ErrPostNotPending は pending 以外の投稿を整形しようとした場合に返される。
 	ErrPostNotPending = errors.New("format_pending: post is not pending")
+	// ErrPostNotFound は対象投稿が存在しない場合に返される。
+	ErrPostNotFound = errors.New("format_pending: post not found")
+	// ErrFormatterUnavailable は LLM が利用できない場合に返される。
+	ErrFormatterUnavailable = errors.New("format_pending: formatter unavailable")
+	// ErrContentRejected は LLM が投稿を拒否した場合に返される。
+	ErrContentRejected = errors.New("format_pending: content rejected")
 	// ErrNilUsecase は依存が未初期化の場合に返される。
 	ErrNilUsecase = errors.New("format_pending: usecase is nil")
 )
@@ -54,6 +60,9 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 
 	p, err := u.postRepo.Get(ctx, post.DarkPostID(postID))
 	if err != nil {
+		if errors.Is(err, repository.ErrPostNotFound) {
+			return ErrPostNotFound
+		}
 		return err
 	}
 	if p.Status() != post.StatusPending {
@@ -65,11 +74,17 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		DarkContent: p.Content(),
 	})
 	if err != nil {
+		if errors.Is(err, llm.ErrFormatterUnavailable) {
+			return ErrFormatterUnavailable
+		}
 		return err
 	}
 
 	validated, err := u.llm.Validate(ctx, formatResult)
 	if err != nil {
+		if errors.Is(err, llm.ErrContentRejected) {
+			return ErrContentRejected
+		}
 		return err
 	}
 
