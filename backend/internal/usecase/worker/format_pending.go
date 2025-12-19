@@ -12,28 +12,22 @@ import (
 )
 
 var (
-	// ErrEmptyPostID は入力 ID が空の場合に返される。
-	ErrEmptyPostID = errors.New("format_pending: post id is empty")
-	// ErrPostNotPending は pending 以外の投稿を整形しようとした場合に返される。
-	ErrPostNotPending = errors.New("format_pending: post is not pending")
-	// ErrPostNotFound は対象投稿が存在しない場合に返される。
-	ErrPostNotFound = errors.New("format_pending: post not found")
-	// ErrFormatterUnavailable は LLM が利用できない場合に返される。
-	ErrFormatterUnavailable = errors.New("format_pending: formatter unavailable")
-	// ErrContentRejected は LLM が投稿を拒否した場合に返される。
-	ErrContentRejected = errors.New("format_pending: content rejected")
-	// ErrNilUsecase は依存が未初期化の場合に返される。
-	ErrNilUsecase = errors.New("format_pending: usecase is nil")
+	ErrEmptyPostID          = errors.New("format_pending: 投稿 ID が指定されていません")
+	ErrPostNotPending       = errors.New("format_pending: 整形待ちの投稿ではありません")
+	ErrPostNotFound         = errors.New("format_pending: 投稿が存在しません")
+	ErrFormatterUnavailable = errors.New("format_pending: 整形サービスに接続できません")
+	ErrContentRejected      = errors.New("format_pending: 投稿内容が拒否されました")
+	ErrNilUsecase           = errors.New("format_pending: ユースケースが初期化されていません")
 )
 
-// FormatPendingUsecase は pending の闇投稿を整形するユースケース。
+// 整形待ち投稿の整形から公開準備までを担う。
 type FormatPendingUsecase struct {
 	postRepo repository.PostRepository
 	llm      llm.Formatter
 	jobQueue queue.JobQueue
 }
 
-// NewFormatPendingUsecase は FormatPendingUsecase を初期化する。
+// 依存をまとめて整形用ユースケースを組み立てる。
 func NewFormatPendingUsecase(
 	postRepo repository.PostRepository,
 	llmFormatter llm.Formatter,
@@ -46,7 +40,8 @@ func NewFormatPendingUsecase(
 	}
 }
 
-// Execute は与えられた闇投稿 ID を整形し、ready 状態へ遷移させる。
+// LLM で整えて検証を通過した投稿を公開待ちに進める。
+// 投稿欠如、LLM 停止など例外もエラーとして伝える。
 func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error {
 	if u == nil {
 		return ErrNilUsecase
@@ -85,10 +80,12 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return err
 	}
 
+	// 検証で公開不可となった場合はここで終了
 	if validated.Status != drawdomain.StatusVerified {
 		return nil
 	}
 
+	// 公開待ちへの状態遷移に失敗した場合は整形待ちではないとみなす
 	if err := p.MarkReady(); err != nil {
 		return ErrPostNotPending
 	}
