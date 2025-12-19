@@ -13,8 +13,7 @@ var (
 )
 
 /**
- * 非同期ジョブキューの契約
- * EnqueueFormat: 闇投稿 ID を LLM に渡す
+ * 闇投稿の整形ジョブを溜めたり取り出したりする契約。
  */
 type JobQueue interface {
 	EnqueueFormat(ctx context.Context, postID post.DarkPostID) error

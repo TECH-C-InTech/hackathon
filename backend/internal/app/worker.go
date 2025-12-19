@@ -15,7 +15,7 @@ import (
 	"backend/internal/usecase/worker"
 )
 
-// WorkerContainer はワーカーで使用する依存を保持する。
+// ワーカーで使う依存をまとめた器。
 type WorkerContainer struct {
 	Infra                *Infra
 	PostRepo             repository.PostRepository
@@ -25,7 +25,9 @@ type WorkerContainer struct {
 	closeFormatter       func() error
 }
 
-// NewWorkerContainer はワーカーの依存を初期化して返す。
+/**
+ * ワーカー稼働に必要なインフラ、LLM、キューなどを整えて返す。
+ */
 func NewWorkerContainer(ctx context.Context) (*WorkerContainer, error) {
 	infra, err := NewInfra(ctx)
 	if err != nil {
@@ -49,6 +51,7 @@ func NewWorkerContainer(ctx context.Context) (*WorkerContainer, error) {
 		return nil, fmt.Errorf("init formatter: %w", err)
 	}
 
+	// サンプル投稿があれば起動直後に処理させる
 	if initialID != "" {
 		_ = jobQueue.EnqueueFormat(ctx, initialID)
 	}
@@ -65,7 +68,9 @@ func NewWorkerContainer(ctx context.Context) (*WorkerContainer, error) {
 	}, nil
 }
 
-// Close は保持している外部リソースをクローズする。
+/**
+ * 生成時に開いたリソースを順に閉じる。
+ */
 func (c *WorkerContainer) Close() error {
 	if c == nil {
 		return nil
@@ -82,6 +87,9 @@ func (c *WorkerContainer) Close() error {
 	return nil
 }
 
+/**
+ * メモリリポジトリへ見本投稿を入れ、整形対象 ID を返す。
+ */
 func seedPosts(repo repository.PostRepository) (post.DarkPostID, error) {
 	sample, err := post.New("post-local", "審査待ちの投稿です")
 	if err != nil {
