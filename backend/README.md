@@ -205,6 +205,11 @@ API / Worker から Firestore を利用する際は、`internal/app` が 1 度�
 | `GOOGLE_APPLICATION_CREDENTIALS` | 本番・Staging などで用いるサービスアカウント JSON のパス（エミュレータ利用時は不要） |
 | `FIRESTORE_EMULATOR_HOST` | Firestore Emulator を利用する場合のホスト名（例: `localhost:8080`） |
 | `WORKER_POST_REPOSITORY` | `firestore` を指定するとワーカーが Firestore PostRepository を利用（未設定時はメモリ実装） |
+| `GEMINI_API_KEY` | Gemini formatter を使用する際の API キー |
+| `GEMINI_MODEL` | 利用する Gemini モデル名（未設定時は `gemini-2.5-flash`） |
+| `OPENAI_API_KEY` | OpenAI formatter を使用する際の API キー |
+| `OPENAI_MODEL` | 利用する OpenAI モデル名（未設定時は `gpt-4o-mini`） |
+| `OPENAI_BASE_URL` | OpenAI 互換エンドポイントを使う場合の Base URL（通常は空で OK） |
 
 `GOOGLE_CLOUD_PROJECT` が未設定の場合は Firestore クライアントは初期化されません（メモリ実装のみで動作）。
 
