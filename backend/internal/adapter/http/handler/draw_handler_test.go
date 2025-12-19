@@ -12,6 +12,7 @@ import (
 
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
+	postusecase "backend/internal/usecase/post"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +23,7 @@ func TestDrawHandler_GetRandomDraw(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		d := newVerifiedDraw(t, "post-success", "fortunes await")
 		handler := NewDrawHandler(&stubFortuneUsecase{draw: d})
-		router := NewRouter(handler, &PostHandler{})
+		router := NewRouter(handler, NewPostHandler(&stubPostUsecaseForRouter{}))
 
 		rec, body := performRequest(router)
 
@@ -46,7 +47,7 @@ func TestDrawHandler_GetRandomDraw(t *testing.T) {
 
 	t.Run("draws depleted", func(t *testing.T) {
 		handler := NewDrawHandler(&stubFortuneUsecase{err: drawdomain.ErrEmptyResult})
-		router := NewRouter(handler, &PostHandler{})
+		router := NewRouter(handler, NewPostHandler(&stubPostUsecaseForRouter{}))
 
 		rec, body := performRequest(router)
 
@@ -64,7 +65,7 @@ func TestDrawHandler_GetRandomDraw(t *testing.T) {
 
 	t.Run("internal error", func(t *testing.T) {
 		handler := NewDrawHandler(&stubFortuneUsecase{err: errors.New("boom")})
-		router := NewRouter(handler, &PostHandler{})
+		router := NewRouter(handler, NewPostHandler(&stubPostUsecaseForRouter{}))
 
 		rec, body := performRequest(router)
 
@@ -112,4 +113,10 @@ func decodeBody[T any](t *testing.T, body io.Reader, out *T) {
 	if err := json.NewDecoder(body).Decode(out); err != nil {
 		t.Fatalf("failed to decode body: %v", err)
 	}
+}
+
+type stubPostUsecaseForRouter struct{}
+
+func (stubPostUsecaseForRouter) Execute(ctx context.Context, in *postusecase.CreatePostInput) (*postusecase.CreatePostOutput, error) {
+	return &postusecase.CreatePostOutput{DarkPostID: "noop"}, nil
 }

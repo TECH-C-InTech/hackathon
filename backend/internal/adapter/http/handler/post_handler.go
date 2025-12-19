@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -16,13 +17,18 @@ const (
 	messagePostConflict       = "post already exists"
 )
 
+// CreatePostExecutor は投稿作成ユースケースの契約。
+type CreatePostExecutor interface {
+	Execute(ctx context.Context, in *postusecase.CreatePostInput) (*postusecase.CreatePostOutput, error)
+}
+
 // PostHandler は投稿関連の HTTP ハンドラをまとめる。
 type PostHandler struct {
-	createUsecase *postusecase.CreatePostUsecase
+	createUsecase CreatePostExecutor
 }
 
 // NewPostHandler は PostHandler を生成する。
-func NewPostHandler(usecase *postusecase.CreatePostUsecase) *PostHandler {
+func NewPostHandler(usecase CreatePostExecutor) *PostHandler {
 	return &PostHandler{createUsecase: usecase}
 }
 
