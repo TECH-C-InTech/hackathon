@@ -65,9 +65,6 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		}
 		return err
 	}
-	if p.Status() != post.StatusPending {
-		return ErrPostNotPending
-	}
 
 	formatResult, err := u.llm.Format(ctx, &llm.FormatRequest{
 		DarkPostID:  p.ID(),
@@ -93,7 +90,7 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 	}
 
 	if err := p.MarkReady(); err != nil {
-		return err
+		return ErrPostNotPending
 	}
 
 	return u.postRepo.Update(ctx, p)

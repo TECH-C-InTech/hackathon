@@ -172,3 +172,116 @@ func TestFormatPendingUsecase_UpdateFailed(t *testing.T) {
 		t.Fatalf("expected update error, got %v", err)
 	}
 }
+
+func TestFormatPendingUsecase_GetGenericError(t *testing.T) {
+	repo := newStubPostRepository(nil)
+	repo.getErr = errors.New("db down")
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{}, stubJobQueue{})
+
+	err := usecase.Execute(context.Background(), "post-1")
+	if !errors.Is(err, repo.getErr) {
+		t.Fatalf("expected repo error, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_FormatGenericError(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := newStubPostRepository(p)
+	expectedErr := errors.New("format failed")
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{
+		formatErr: expectedErr,
+	}, stubJobQueue{})
+
+	err := usecase.Execute(context.Background(), "post-1")
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected generic format error, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_ValidateGenericError(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := newStubPostRepository(p)
+	expectedErr := errors.New("validate failed")
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{
+		formatResult: &llm.FormatResult{DarkPostID: p.ID()},
+		validateErr:  expectedErr,
+	}, stubJobQueue{})
+
+	err := usecase.Execute(context.Background(), "post-1")
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected generic validate error, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_PostNotPending(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	if err := p.MarkReady(); err != nil {
+		t.Fatalf("failed to mark ready: %v", err)
+	}
+	repo := newStubPostRepository(p)
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{
+		formatResult: &llm.FormatResult{DarkPostID: p.ID()},
+		validateResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusVerified,
+			FormattedContent: "formatted",
+		},
+	}, stubJobQueue{})
+
+	err := usecase.Execute(context.Background(), "post-1")
+	if !errors.Is(err, ErrPostNotPending) {
+		t.Fatalf("expected ErrPostNotPending, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_EmptyPostID(t *testing.T) {
+	usecase := NewFormatPendingUsecase(newStubPostRepository(nil), &stubFormatter{}, stubJobQueue{})
+	if err := usecase.Execute(context.Background(), ""); !errors.Is(err, ErrEmptyPostID) {
+		t.Fatalf("expected ErrEmptyPostID, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_NilUsecase(t *testing.T) {
+	var usecase *FormatPendingUsecase
+	if err := usecase.Execute(context.Background(), "post-1"); !errors.Is(err, ErrNilUsecase) {
+		t.Fatalf("expected ErrNilUsecase, got %v", err)
+	}
+}
+
+func TestFormatPendingUsecase_ValidationNotVerified(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := newStubPostRepository(p)
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{
+		formatResult: &llm.FormatResult{DarkPostID: p.ID()},
+		validateResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusRejected,
+			FormattedContent: "formatted",
+		},
+	}, stubJobQueue{})
+
+	if err := usecase.Execute(context.Background(), "post-1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.updated != nil {
+		t.Fatalf("post should not be updated when not verified")
+	}
+}
+
+func TestFormatPendingUsecase_NilContext(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := newStubPostRepository(p)
+	usecase := NewFormatPendingUsecase(repo, &stubFormatter{
+		formatResult: &llm.FormatResult{DarkPostID: p.ID()},
+		validateResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusVerified,
+			FormattedContent: "formatted",
+		},
+	}, stubJobQueue{})
+
+	var nilCtx context.Context
+	if err := usecase.Execute(nilCtx, "post-1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
