@@ -43,8 +43,6 @@ func truncateCollection(t *testing.T, client *firestore.Client, collection strin
 	t.Helper()
 	ctx := context.Background()
 	iter := client.Collection(collection).Documents(ctx)
-	batch := client.Batch()
-	count := 0
 	for {
 		doc, err := iter.Next()
 		if err != nil {
@@ -53,19 +51,9 @@ func truncateCollection(t *testing.T, client *firestore.Client, collection strin
 			}
 			t.Fatalf("iterate %s: %v", collection, err)
 		}
-		batch.Delete(doc.Ref)
-		count++
-		if count == 500 {
-			if _, err := batch.Commit(ctx); err != nil {
-				t.Fatalf("commit delete batch: %v", err)
-			}
-			batch = client.Batch()
-			count = 0
-		}
-	}
-	if count > 0 {
-		if _, err := batch.Commit(ctx); err != nil {
-			t.Fatalf("commit delete batch: %v", err)
+		// エミュレータ上のテストなので 1 件ずつ削除すれば十分。
+		if _, err := doc.Ref.Delete(ctx); err != nil {
+			t.Fatalf("delete doc %s: %v", doc.Ref.ID, err)
 		}
 	}
 }
