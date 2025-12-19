@@ -78,6 +78,22 @@ func TestPostHandler_CreatePost(t *testing.T) {
 		expectStatusAndMessage(t, rec, resp, http.StatusBadRequest, messagePostInvalidRequest)
 	})
 
+	t.Run("nil input error", func(t *testing.T) {
+		handler := NewPostHandler(&stubCreatePostUsecase{
+			err: postusecase.ErrNilInput,
+		})
+		rec, resp := performPostRequest(handler, `{"post_id":"dark","content":"hello"}`)
+		expectStatusAndMessage(t, rec, resp, http.StatusBadRequest, messagePostInvalidRequest)
+	})
+
+	t.Run("job already scheduled", func(t *testing.T) {
+		handler := NewPostHandler(&stubCreatePostUsecase{
+			err: postusecase.ErrJobAlreadyScheduled,
+		})
+		rec, resp := performPostRequest(handler, `{"post_id":"dark","content":"hello"}`)
+		expectStatusAndMessage(t, rec, resp, http.StatusConflict, messagePostConflict)
+	})
+
 	t.Run("internal error", func(t *testing.T) {
 		handler := NewPostHandler(&stubCreatePostUsecase{
 			err: errors.New("boom"),
