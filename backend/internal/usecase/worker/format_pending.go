@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
@@ -25,7 +26,7 @@ var (
 type FormatPendingUsecase struct {
 	postRepo repository.PostRepository
 	llm      llm.Formatter
-	jobQueue queue.JobQueue
+	jobQueue queue.JobQueue // TODO: 再整形の再キュー処理で利用予定
 }
 
 // 依存をまとめて整形用ユースケースを組み立てる。
@@ -86,9 +87,9 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return nil
 	}
 
-	// 公開待ちへの状態遷移に失敗した場合は整形待ちではないとみなす
+	// 公開待ちへの状態遷移に失敗した場合は元エラーも保持しつつ整形待ちではないとみなす
 	if err := p.MarkReady(); err != nil {
-		return ErrPostNotPending
+		return fmt.Errorf("%w: %v", ErrPostNotPending, err)
 	}
 
 	return u.postRepo.Update(ctx, p)
