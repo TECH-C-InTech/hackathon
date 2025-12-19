@@ -69,15 +69,14 @@ func TestFirestoreJobQueue_DequeueWaitsForNewJob(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	done := make(chan post.DarkPostID)
+	type result struct {
+		id  post.DarkPostID
+		err error
+	}
+	done := make(chan result)
 	go func() {
 		id, err := queue.DequeueFormat(ctx)
-		if err != nil {
-			t.Errorf("dequeue: %v", err)
-			close(done)
-			return
-		}
-		done <- id
+		done <- result{id: id, err: err}
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -88,9 +87,12 @@ func TestFirestoreJobQueue_DequeueWaitsForNewJob(t *testing.T) {
 	select {
 	case <-ctx.Done():
 		t.Fatalf("context finished before job dequeued: %v", ctx.Err())
-	case id := <-done:
-		if id != post.DarkPostID("delayed-post") {
-			t.Fatalf("unexpected id: %s", id)
+	case res := <-done:
+		if res.err != nil {
+			t.Fatalf("dequeue: %v", res.err)
+		}
+		if res.id != post.DarkPostID("delayed-post") {
+			t.Fatalf("unexpected id: %s", res.id)
 		}
 	}
 }
