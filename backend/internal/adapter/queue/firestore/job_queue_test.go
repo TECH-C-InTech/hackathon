@@ -164,6 +164,7 @@ func truncateCollection(t *testing.T, client *firestore.Client, collection strin
 	t.Helper()
 	ctx := context.Background()
 	iter := client.Collection(collection).Documents(ctx)
+	defer iter.Stop()
 	for {
 		doc, err := iter.Next()
 		if err != nil {

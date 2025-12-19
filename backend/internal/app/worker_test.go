@@ -240,9 +240,6 @@ func TestWorkerContainerClose_ReturnsFirstError(t *testing.T) {
 	if !queueStub.closed {
 		t.Fatalf("queue close was not invoked")
 	}
-	if !queueStub.closed {
-		t.Fatalf("queue close was not invoked")
-	}
 }
 
 func TestWorkerContainerClose_Nil(t *testing.T) {
