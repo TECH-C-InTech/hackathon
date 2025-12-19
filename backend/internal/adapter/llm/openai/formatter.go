@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"backend/internal/config"
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/port/llm"
 
@@ -45,7 +46,7 @@ func NewFormatter(apiKey, model, baseURL string) (*Formatter, error) {
 	}
 	client := openai.NewClientWithConfig(cfg)
 	if model == "" {
-		model = "gpt-4o-mini"
+		model = config.DefaultOpenAIModel
 	}
 	return &Formatter{
 		client: client,
