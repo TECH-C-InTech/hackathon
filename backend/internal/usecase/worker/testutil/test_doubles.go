@@ -77,7 +77,7 @@ type StubDrawRepository struct {
 }
 
 /**
- * Create 呼び出しを無視する。
+ * Create 呼び出しを記録しつつ、必要ならエラーを返す。
  */
 func (s *StubDrawRepository) Create(ctx context.Context, d *drawdomain.Draw) error {
 	if s.CreateErr != nil {
