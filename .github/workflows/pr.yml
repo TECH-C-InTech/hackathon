@@ -17,7 +17,7 @@ jobs:
       targets: ${{ steps.list-targets.outputs.targets }}
     steps:
       - uses: actions/checkout@v4
-      - uses: aquaproj/aqua-installer@v3.2.0
+      - uses: aquaproj/aqua-installer@v4.0.4
         with:
           aqua_version: v2.38.0
         env:
@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aquaproj/aqua-installer@v3.2.0
+      - uses: aquaproj/aqua-installer@v4.0.4
         with:
           aqua_version: v2.38.0
         env:
