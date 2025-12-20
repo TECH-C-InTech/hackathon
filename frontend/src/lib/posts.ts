@@ -1,13 +1,6 @@
-import { getApiBaseUrl, getApiErrorMessage } from "./api";
-
-export type CreatePostRequest = {
-  post_id: string;
-  content: string;
-};
-
-export type CreatePostResponse = {
-  post_id: string;
-};
+import type { CreatePostRequest, CreatePostResponse } from "@/types/api";
+import { getApiErrorMessage } from "@/utils/api";
+import { getApiBaseUrl } from "./api";
 
 // APIのベースURLの末尾のスラッシュを取り除く。
 const normalizeApiBaseUrl = () => getApiBaseUrl().replace(/\/+$/, "");
