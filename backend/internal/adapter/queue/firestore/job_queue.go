@@ -18,7 +18,7 @@ import (
 const (
 	formatJobsCollection = "format_jobs"
 	jobStatusPending     = "pending"
-	pollIntervalMin      = 5 * time.Second
+	pollIntervalMin      = 3 * time.Minute
 	pollIntervalMax      = 5 * time.Minute
 )
 
