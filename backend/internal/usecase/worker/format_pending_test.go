@@ -112,7 +112,8 @@ func TestFormatPendingUsecase_UpdateFailed(t *testing.T) {
 	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
 	repo := testutil.NewStubPostRepository(p)
 	repo.UpdateErr = errors.New("update failed")
-	usecase := NewFormatPendingUsecase(repo, &testutil.StubDrawRepository{}, &testutil.StubFormatter{
+	drawRepo := &testutil.StubDrawRepository{}
+	usecase := NewFormatPendingUsecase(repo, drawRepo, &testutil.StubFormatter{
 		FormatResult: &llm.FormatResult{DarkPostID: p.ID()},
 		ValidateResult: &llm.FormatResult{
 			DarkPostID:       p.ID(),
@@ -124,6 +125,9 @@ func TestFormatPendingUsecase_UpdateFailed(t *testing.T) {
 	err := usecase.Execute(context.Background(), "post-1")
 	if err == nil || !errors.Is(err, repo.UpdateErr) {
 		t.Fatalf("expected update error, got %v", err)
+	}
+	if len(drawRepo.Created) != 0 {
+		t.Fatalf("draw should not be created when update fails")
 	}
 }
 
@@ -239,8 +243,8 @@ func TestFormatPendingUsecase_DrawCreateFailed(t *testing.T) {
 	if !errors.Is(err, ErrDrawCreationFailed) {
 		t.Fatalf("expected ErrDrawCreationFailed, got %v", err)
 	}
-	if repo.Updated != nil {
-		t.Fatalf("post should not be updated when draw creation fails")
+	if repo.Updated == nil || repo.Updated.Status() != post.StatusReady {
+		t.Fatalf("post should be marked ready even when draw creation fails")
 	}
 	if len(drawRepo.Created) != 0 {
 		t.Fatalf("draw should not be recorded when create fails")

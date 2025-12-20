@@ -94,24 +94,26 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return nil
 	}
 
-	drawContent := normalizeDrawContent(validated.FormattedContent)
-	drawEntity, err := drawdomain.New(p.ID(), drawContent)
-	if err != nil {
-		return err
-	}
-	if validated.Status == drawdomain.StatusVerified {
-		drawEntity.MarkVerified()
-	}
-	if err := u.drawRepo.Create(ctx, drawEntity); err != nil {
-		return fmt.Errorf("%w: %v", ErrDrawCreationFailed, err)
-	}
-
 	// 公開待ちへの状態遷移に失敗した場合は元エラーも保持しつつ整形待ちではないとみなす
 	if err := p.MarkReady(); err != nil {
 		return fmt.Errorf("%w: %v", ErrPostNotPending, err)
 	}
 
-	return u.postRepo.Update(ctx, p)
+	if err := u.postRepo.Update(ctx, p); err != nil {
+		return err
+	}
+
+	drawContent := normalizeDrawContent(validated.FormattedContent)
+	drawEntity, err := drawdomain.FromPost(p, drawContent)
+	if err != nil {
+		return err
+	}
+	drawEntity.MarkVerified()
+	if err := u.drawRepo.Create(ctx, drawEntity); err != nil {
+		return fmt.Errorf("%w: %v", ErrDrawCreationFailed, err)
+	}
+
+	return nil
 }
 
 func normalizeDrawContent(content drawdomain.FormattedContent) drawdomain.FormattedContent {
