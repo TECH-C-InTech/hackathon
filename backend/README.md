@@ -185,6 +185,15 @@ go run ./cmd/api
 curl -i localhost:8080/draws/random
 ```
 
+## 開発時の同時起動
+
+API と Worker を同時に動かす場合は、別ターミナルで Worker を起動してください。
+
+```
+cd backend
+go run ./cmd/worker
+```
+
 環境変数 `DRAW_REPOSITORY_MODE` によりリポジトリの挙動を切り替えられます。  
 
 | モード | 起動例 | 期待されるレスポンス |

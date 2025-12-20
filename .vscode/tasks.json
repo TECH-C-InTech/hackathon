@@ -32,10 +32,26 @@
       }
     },
     {
+      "label": "Backend: Worker",
+      "type": "shell",
+      "command": "go run ./cmd/worker",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
       "label": "Dev: All",
       "dependsOn": [
         "Frontend: Dev Server",
-        "Backend: API Server"
+        "Backend: API Server",
+        "Backend: Worker"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": []
