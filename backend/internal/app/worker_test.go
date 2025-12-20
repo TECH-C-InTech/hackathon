@@ -254,6 +254,43 @@ func TestMergeCloseError(t *testing.T) {
 	}
 }
 
+func TestNewOpenAIFormatter_Success(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_MODEL", "")
+	t.Setenv("OPENAI_BASE_URL", "")
+
+	stub := &stubFormatter{}
+	origFactory := openaiFormatterFactory
+	openaiFormatterFactory = func(apiKey, model, baseURL string) (llm.Formatter, func() error, error) {
+		if apiKey != "test-key" {
+			t.Fatalf("unexpected api key: %s", apiKey)
+		}
+		if model != "gpt-4o-mini" {
+			t.Fatalf("expected default model, got %s", model)
+		}
+		return stub, stub.Close, nil
+	}
+	defer func() { openaiFormatterFactory = origFactory }()
+
+	formatter, closer, err := newOpenAIFormatter()
+	if err != nil {
+		t.Fatalf("newOpenAIFormatter returned error: %v", err)
+	}
+	if formatter != stub {
+		t.Fatalf("expected stub formatter")
+	}
+	if closer == nil {
+		t.Fatalf("expected close function")
+	}
+}
+
+func TestNewOpenAIFormatter_MissingConfig(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "")
+	if _, _, err := newOpenAIFormatter(); err == nil {
+		t.Fatalf("expected error when OPENAI_API_KEY is missing")
+	}
+}
+
 func setRequiredFirestoreEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
