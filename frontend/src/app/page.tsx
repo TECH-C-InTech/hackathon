@@ -6,6 +6,10 @@ type Step = "input" | "loading" | "result";
 
 export default function Home() {
   const [currentStep, setCurrentStep] = useState<Step>("input");
+  const [content, setContent] = useState("");
+  const contentLength = content.length;
+  const trimmedLength = content.trim().length;
+  const isSubmitDisabled = trimmedLength === 0 || contentLength > 140;
 
   useEffect(() => {
     if (currentStep !== "loading") {
@@ -32,12 +36,24 @@ export default function Home() {
           <section className="flex flex-col gap-4">
             <textarea
               className="min-h-[140px] w-full resize-none rounded-2xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+              maxLength={140}
               placeholder="ここに闇を投げる（最大140字）"
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
             />
+            <div className="text-right text-xs text-zinc-500">
+              {contentLength}/140
+            </div>
             <button
-              className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white"
+              className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
               type="button"
-              onClick={() => setCurrentStep("loading")}
+              onClick={() => {
+                if (isSubmitDisabled) {
+                  return;
+                }
+                setCurrentStep("loading");
+              }}
+              disabled={isSubmitDisabled}
             >
               懺悔する
             </button>
