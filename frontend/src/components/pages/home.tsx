@@ -26,6 +26,11 @@ export default function HomePage() {
       setContent("");
       setResultText("");
     }
+  const handleRetry = (options?: { clearContent?: boolean }) => {
+    if (options?.clearContent) {
+      setContent("");
+      setResultText("");
+    }
     setErrorMessage("");
     setCurrentStep("input");
   };
@@ -138,6 +143,7 @@ export default function HomePage() {
             <button
               className="rounded-full border border-zinc-300 px-6 py-3 font-semibold text-sm text-zinc-700"
               type="button"
+              onClick={() => handleRetry({ clearContent: true })}
               onClick={() => handleRetry({ clearContent: true })}
             >
               もう一度懺悔する
