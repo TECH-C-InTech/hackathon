@@ -90,6 +90,14 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return nil
 	}
 
+	drawEntity, err := drawdomain.New(p.ID(), validated.FormattedContent)
+	if err != nil {
+		return err
+	}
+	if err := u.drawRepo.Create(ctx, drawEntity); err != nil {
+		return err
+	}
+
 	// 公開待ちへの状態遷移に失敗した場合は元エラーも保持しつつ整形待ちではないとみなす
 	if err := p.MarkReady(); err != nil {
 		return fmt.Errorf("%w: %v", ErrPostNotPending, err)
