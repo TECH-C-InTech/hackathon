@@ -35,6 +35,20 @@ func TestNewJobQueue_FirestoreSuccess(t *testing.T) {
 	}
 }
 
+func TestNewJobQueue_FactoryError(t *testing.T) {
+	origFactory := firestoreJobQueueFactory
+	defer func() { firestoreJobQueueFactory = origFactory }()
+
+	firestoreJobQueueFactory = func(client *firestore.Client) (queue.JobQueue, error) {
+		return nil, errors.New("factory error")
+	}
+
+	infra := &Infra{firestoreClient: &firestore.Client{}}
+	if _, err := newJobQueue(infra); err == nil {
+		t.Fatalf("expected error when queue factory fails")
+	}
+}
+
 type fakeJobQueue struct{}
 
 func (fakeJobQueue) EnqueueFormat(ctx context.Context, id post.DarkPostID) error {
