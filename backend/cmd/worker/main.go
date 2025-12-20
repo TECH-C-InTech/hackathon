@@ -11,6 +11,7 @@ import (
 	"backend/internal/app"
 	"backend/internal/config"
 	"backend/internal/port/queue"
+	usecaseworker "backend/internal/usecase/worker"
 )
 
 /**
@@ -64,8 +65,16 @@ func runLoop(ctx context.Context, container *app.WorkerContainer) {
 		}
 
 		if err := container.FormatPendingUsecase.Execute(ctx, string(postID)); err != nil {
-			// LLM や投稿の整形問題はログに残して次のジョブへ
-			log.Printf("format error (post=%s): %v", postID, err)
+			switch {
+			case errors.Is(err, usecaseworker.ErrDrawCreationFailed):
+				log.Printf("draw creation failed (post=%s): %v (requeued)", postID, err)
+			case errors.Is(err, usecaseworker.ErrRequeueFailed),
+				errors.Is(err, usecaseworker.ErrPostRollbackFailed):
+				log.Printf("draw creation rollback failed (post=%s): %v", postID, err)
+			default:
+				// LLM や投稿の整形問題はログに残して次のジョブへ
+				log.Printf("format error (post=%s): %v", postID, err)
+			}
 			continue
 		}
 
