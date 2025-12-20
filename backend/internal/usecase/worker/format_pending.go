@@ -94,6 +94,9 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 	if err != nil {
 		return err
 	}
+	if validated.Status == drawdomain.StatusVerified {
+		drawEntity.MarkVerified()
+	}
 	if err := u.drawRepo.Create(ctx, drawEntity); err != nil {
 		return err
 	}
