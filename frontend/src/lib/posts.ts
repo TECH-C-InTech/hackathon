@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL, getApiErrorMessage } from "./api";
 
 export type CreatePostRequest = {
   post_id: string;
@@ -7,10 +7,6 @@ export type CreatePostRequest = {
 
 export type CreatePostResponse = {
   post_id: string;
-};
-
-type ApiErrorResponse = {
-  message?: string;
 };
 
 /**
@@ -38,15 +34,10 @@ export const createPost = async (content: string) => {
   window.clearTimeout(timeoutId);
 
   if (!response.ok) {
-    let errorMessage = "投稿に失敗しました";
-    try {
-      const data = (await response.json()) as ApiErrorResponse;
-      if (data.message) {
-        errorMessage = data.message;
-      }
-    } catch {
-      // 何も取得できない場合は既定文言で返す。
-    }
+    const errorMessage = await getApiErrorMessage(
+      response,
+      "投稿に失敗しました",
+    );
     throw new Error(errorMessage);
   }
 
