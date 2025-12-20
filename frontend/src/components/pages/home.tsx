@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { fetchRandomDraw } from "@/lib/draws";
 import { createPost } from "@/lib/posts";
 
@@ -12,6 +12,9 @@ export default function HomePage() {
   const [content, setContent] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [resultText, setResultText] = useState("");
+  const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
+  const modalRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const defaultPostError = "投稿に失敗しました";
   const defaultDrawError = "おみくじの取得に失敗しました";
   const contentLength = content.length;
@@ -69,6 +72,62 @@ export default function HomePage() {
     }
   };
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+
+    // モーダル表示時は入力欄へフォーカスを移動する
+    inputRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsModalOpen(false);
+        handleRetry();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const modal = modalRef.current;
+      if (!modal) {
+        return;
+      }
+
+      const focusableElements = modal.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+
+      if (focusableElements.length === 0) {
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      triggerButtonRef.current?.focus();
+    };
+  }, [isModalOpen]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-8 font-sans text-zinc-900 md:px-0">
       <div className="flex w-full max-w-xl flex-col items-center gap-4">
@@ -76,6 +135,7 @@ export default function HomePage() {
         <button
           className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white transition hover:bg-zinc-800"
           type="button"
+          ref={triggerButtonRef}
           onClick={() => {
             setIsModalOpen(true);
             handleRetry({ clearContent: true });
@@ -97,6 +157,7 @@ export default function HomePage() {
         >
           <main
             className="relative flex w-full max-w-lg flex-col gap-8 rounded-3xl bg-white px-6 py-10 shadow-lg md:max-w-xl md:px-8 md:py-12"
+            ref={modalRef}
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -118,6 +179,7 @@ export default function HomePage() {
                   placeholder="ここに闇を投げる（最大140字）"
                   value={content}
                   onChange={handleContentChange}
+                  ref={inputRef}
                 />
                 <div className="text-right text-xs text-zinc-500">
                   {contentLength}/140
