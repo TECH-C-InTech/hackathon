@@ -11,6 +11,8 @@ export default function HomePage() {
   const [content, setContent] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [resultText, setResultText] = useState("");
+  const defaultPostError = "投稿に失敗しました";
+  const defaultDrawError = "おみくじの取得に失敗しました";
   const contentLength = content.length;
   const trimmedLength = content.trim().length;
   const isSubmitDisabled = trimmedLength === 0 || contentLength > 140;
@@ -36,12 +38,21 @@ export default function HomePage() {
     setErrorMessage("");
     try {
       await createPost(content.trim());
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : defaultPostError,
+      );
+      setCurrentStep("error");
+      return;
+    }
+
+    try {
       const draw = await fetchRandomDraw();
       setResultText(draw.result);
       setCurrentStep("result");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "投稿に失敗しました",
+        error instanceof Error ? error.message : defaultDrawError,
       );
       setCurrentStep("error");
     }
