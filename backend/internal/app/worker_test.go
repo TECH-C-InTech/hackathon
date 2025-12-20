@@ -9,42 +9,54 @@ import (
 	"google.golang.org/api/option"
 
 	"backend/internal/adapter/llm/gemini"
-	repoMemory "backend/internal/adapter/repository/memory"
 	"backend/internal/domain/post"
 	"backend/internal/port/llm"
 	"backend/internal/port/queue"
 	"backend/internal/port/repository"
+	workertestutil "backend/internal/usecase/worker/testutil"
 )
 
-func TestNewWorkerContainer_MemorySeedsJob(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy-model")
-	t.Setenv("WORKER_POST_REPOSITORY", "")
+func TestNewWorkerContainer_UsesFirestoreRepository(t *testing.T) {
+	setRequiredFirestoreEnv(t)
+	defer stubJobQueueFactory(t)()
 
-	stub := &stubFormatter{}
-	origFactory := formatterFactory
-	formatterFactory = func(ctx context.Context, apiKey, model string) (llm.Formatter, func() error, error) {
-		return stub, stub.Close, nil
+	stubFormatter := &stubFormatter{}
+	origFormatterFactory := formatterFactory
+	formatterFactory = func(ctx context.Context) (llm.Formatter, func() error, error) {
+		return stubFormatter, stubFormatter.Close, nil
 	}
-	defer func() { formatterFactory = origFactory }()
+	defer func() { formatterFactory = origFormatterFactory }()
+
+	stubRepo := &workerStubPostRepository{}
+	origRepoFactory := postRepositoryFactory
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return stubRepo, nil
+	}
+	defer func() { postRepositoryFactory = origRepoFactory }()
+
+	stubDrawRepo := &workertestutil.StubDrawRepository{}
+	defer stubDrawRepositoryFactory(t, stubDrawRepo, nil)()
+
+	origInfraFactory := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
+	}
+	defer func() { infraFactory = origInfraFactory }()
 
 	container, err := NewWorkerContainer(context.Background())
 	if err != nil {
 		t.Fatalf("NewWorkerContainer returned error: %v", err)
 	}
-
-	id, err := container.JobQueue.DequeueFormat(context.Background())
-	if err != nil {
-		t.Fatalf("dequeuing seed failed: %v", err)
+	if container.PostRepo != stubRepo {
+		t.Fatalf("expected stub repository to be used")
 	}
-	if id != post.DarkPostID("post-local") {
-		t.Fatalf("unexpected seed id: %s", id)
+	if container.DrawRepo != stubDrawRepo {
+		t.Fatalf("expected draw repository stub to be used")
 	}
-
 	if err := container.Close(); err != nil {
 		t.Fatalf("close returned error: %v", err)
 	}
-	if !stub.closed {
+	if !stubFormatter.closed {
 		t.Fatalf("formatter should be closable via container.Close")
 	}
 }
@@ -57,9 +69,12 @@ func TestFormatterFactory_UsesCtor(t *testing.T) {
 	}
 	defer func() { formatterCtor = origCtor }()
 
-	f, closer, err := formatterFactory(context.Background(), "key", "model")
+	t.Setenv("GEMINI_API_KEY", "key")
+	t.Setenv("GEMINI_MODEL", "model")
+
+	f, closer, err := newGeminiFormatter(context.Background())
 	if err != nil {
-		t.Fatalf("formatterFactory returned error: %v", err)
+		t.Fatalf("newGeminiFormatter returned error: %v", err)
 	}
 	if f != stub {
 		t.Fatalf("expected stub formatter")
@@ -69,11 +84,17 @@ func TestFormatterFactory_UsesCtor(t *testing.T) {
 	}
 }
 func TestNewWorkerContainer_PostRepoError(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy")
+	setRequiredFirestoreEnv(t)
+
+	origInfra := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
+	}
+	defer func() { infraFactory = origInfra }()
+
 	origRepoFactory := postRepositoryFactory
-	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, bool, error) {
-		return nil, false, errors.New("repo factory error")
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return nil, errors.New("repo factory error")
 	}
 	defer func() { postRepositoryFactory = origRepoFactory }()
 
@@ -82,28 +103,51 @@ func TestNewWorkerContainer_PostRepoError(t *testing.T) {
 	}
 }
 
-func TestNewWorkerContainer_SeedPostsError(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy")
-	origSeed := seedPostsFunc
-	seedPostsFunc = func(ctx context.Context, repo repository.PostRepository) (post.DarkPostID, error) {
-		return "", errors.New("seed error")
-	}
-	defer func() { seedPostsFunc = origSeed }()
+func TestNewWorkerContainer_DrawRepoError(t *testing.T) {
+	setRequiredFirestoreEnv(t)
 
-	if _, err := NewWorkerContainer(context.Background()); err == nil {
-		t.Fatalf("expected error when seeding posts fails")
+	origInfra := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
+	}
+	defer func() { infraFactory = origInfra }()
+
+	origRepoFactory := postRepositoryFactory
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return &workerStubPostRepository{}, nil
+	}
+	defer func() { postRepositoryFactory = origRepoFactory }()
+
+	drawErr := errors.New("draw repo error")
+	defer stubDrawRepositoryFactory(t, nil, drawErr)()
+
+	if _, err := NewWorkerContainer(context.Background()); err == nil || !errors.Is(err, drawErr) {
+		t.Fatalf("expected draw repository error, got %v", err)
 	}
 }
 
 func TestNewWorkerContainer_FormatterFactoryError(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy")
-	origFactory := formatterFactory
-	formatterFactory = func(ctx context.Context, apiKey, model string) (llm.Formatter, func() error, error) {
+	setRequiredFirestoreEnv(t)
+	defer stubJobQueueFactory(t)()
+	defer stubDrawRepositoryFactory(t, &workertestutil.StubDrawRepository{}, nil)()
+
+	origInfra := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
+	}
+	defer func() { infraFactory = origInfra }()
+
+	origRepoFactory := postRepositoryFactory
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return &workerStubPostRepository{}, nil
+	}
+	defer func() { postRepositoryFactory = origRepoFactory }()
+
+	origFormatterFactory := formatterFactory
+	formatterFactory = func(ctx context.Context) (llm.Formatter, func() error, error) {
 		return nil, nil, errors.New("formatter error")
 	}
-	defer func() { formatterFactory = origFactory }()
+	defer func() { formatterFactory = origFormatterFactory }()
 
 	if _, err := NewWorkerContainer(context.Background()); err == nil {
 		t.Fatalf("expected error when formatter factory fails")
@@ -111,16 +155,33 @@ func TestNewWorkerContainer_FormatterFactoryError(t *testing.T) {
 }
 
 func TestNewWorkerContainer_MissingGeminiConfig(t *testing.T) {
+	setRequiredFirestoreEnv(t)
+	t.Setenv("LLM_PROVIDER", "gemini")
 	t.Setenv("GEMINI_API_KEY", "")
 	t.Setenv("GEMINI_MODEL", "")
+	defer stubJobQueueFactory(t)()
+	defer stubDrawRepositoryFactory(t, &workertestutil.StubDrawRepository{}, nil)()
+
+	origInfra := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
+	}
+	defer func() { infraFactory = origInfra }()
+
+	origRepoFactory := postRepositoryFactory
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return &workerStubPostRepository{}, nil
+	}
+	defer func() { postRepositoryFactory = origRepoFactory }()
+
 	if _, err := NewWorkerContainer(context.Background()); err == nil {
-		t.Fatalf("expected error when config is missing")
+		t.Fatalf("expected error when gemini config is missing")
 	}
 }
 
 func TestNewWorkerContainer_InfraError(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy")
+	setRequiredFirestoreEnv(t)
+
 	origInfra := infraFactory
 	infraFactory = func(ctx context.Context) (*Infra, error) {
 		return nil, errors.New("infra error")
@@ -132,71 +193,64 @@ func TestNewWorkerContainer_InfraError(t *testing.T) {
 	}
 }
 
-func TestNewWorkerContainer_SeedEnqueueError(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "dummy")
-	t.Setenv("GEMINI_MODEL", "dummy")
-	stub := &stubFormatter{}
-	origFactory := formatterFactory
-	formatterFactory = func(ctx context.Context, apiKey, model string) (llm.Formatter, func() error, error) {
-		return stub, stub.Close, nil
+func TestNewWorkerContainer_FirestoreEnvMissing(t *testing.T) {
+	if _, err := NewWorkerContainer(context.Background()); err == nil {
+		t.Fatalf("expected error when firestore env vars are missing")
+	} else if !errors.Is(err, errWorkerFirestoreEnvMissing) {
+		t.Fatalf("expected missing env error, got %v", err)
 	}
-	defer func() { formatterFactory = origFactory }()
+}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+func TestNewWorkerContainer_JobQueueFactoryError(t *testing.T) {
+	setRequiredFirestoreEnv(t)
+	defer stubDrawRepositoryFactory(t, &workertestutil.StubDrawRepository{}, nil)()
 
-	container, err := NewWorkerContainer(ctx)
-	if err != nil {
-		t.Fatalf("expected success even when enqueue fails: %v", err)
+	origInfra := infraFactory
+	infraFactory = func(ctx context.Context) (*Infra, error) {
+		return &Infra{}, nil
 	}
-	_ = container.Close()
+	defer func() { infraFactory = origInfra }()
+
+	origRepoFactory := postRepositoryFactory
+	postRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.PostRepository, error) {
+		return &workerStubPostRepository{}, nil
+	}
+	defer func() { postRepositoryFactory = origRepoFactory }()
+
+	origJobQueueFactory := jobQueueFactory
+	jobQueueFactory = func(infra *Infra) (queue.JobQueue, error) {
+		return nil, errors.New("job queue error")
+	}
+	defer func() { jobQueueFactory = origJobQueueFactory }()
+
+	if _, err := NewWorkerContainer(context.Background()); err == nil {
+		t.Fatalf("expected error when job queue factory fails")
+	}
 }
 
 func TestNewPostRepository_FirestoreRequiresClient(t *testing.T) {
-	t.Setenv("WORKER_POST_REPOSITORY", "firestore")
-	if _, _, err := newPostRepository(context.Background(), &Infra{}); err == nil {
+	if _, err := newPostRepository(context.Background(), &Infra{}); err == nil {
 		t.Fatalf("expected error when firestore client is missing")
 	}
 }
 
 func TestNewPostRepository_FirestoreSuccess(t *testing.T) {
-	t.Setenv("WORKER_POST_REPOSITORY", "firestore")
 	infra := &Infra{firestoreClient: &firestore.Client{}}
-	if _, seed, err := newPostRepository(context.Background(), infra); err != nil || seed {
-		t.Fatalf("expected firestore repo without seeding, err=%v seed=%v", err, seed)
+	if _, err := newPostRepository(context.Background(), infra); err != nil {
+		t.Fatalf("expected firestore repo, got error: %v", err)
 	}
 }
 
-func TestNewPostRepository_DefaultMemory(t *testing.T) {
-	t.Setenv("WORKER_POST_REPOSITORY", "")
-	repo, seed, err := newPostRepository(context.Background(), &Infra{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !seed {
-		t.Fatalf("expected seed flag to be true for memory repo")
-	}
-	if _, ok := repo.(*repoMemory.InMemoryPostRepository); !ok {
-		t.Fatalf("expected memory repository, got %T", repo)
+func TestNewDrawRepository_FirestoreRequiresClient(t *testing.T) {
+	if _, err := newDrawRepository(context.Background(), &Infra{}); err == nil {
+		t.Fatalf("expected error when firestore client is missing")
 	}
 }
 
-func TestSeedPosts_Error(t *testing.T) {
-	repo := failingPostRepository{createErr: errors.New("create failed")}
-	if _, err := seedPosts(context.Background(), repo); err == nil {
-		t.Fatalf("expected error when create fails")
-	}
-}
-
-func TestSeedPosts_SampleFactoryError(t *testing.T) {
-	orig := samplePostFactory
-	samplePostFactory = func() (*post.Post, error) {
-		return nil, errors.New("sample error")
-	}
-	defer func() { samplePostFactory = orig }()
-
-	if _, err := seedPosts(context.Background(), repoMemory.NewInMemoryPostRepository()); err == nil {
-		t.Fatalf("expected error when sample factory fails")
+func TestNewDrawRepository_FirestoreSuccess(t *testing.T) {
+	infra := &Infra{firestoreClient: &firestore.Client{}}
+	if _, err := newDrawRepository(context.Background(), infra); err != nil {
+		t.Fatalf("expected firestore draw repo, got error: %v", err)
 	}
 }
 
@@ -219,9 +273,6 @@ func TestWorkerContainerClose_ReturnsFirstError(t *testing.T) {
 	}
 	if !formatter.closed {
 		t.Fatalf("formatter close was not invoked")
-	}
-	if !queueStub.closed {
-		t.Fatalf("queue close was not invoked")
 	}
 	if !queueStub.closed {
 		t.Fatalf("queue close was not invoked")
@@ -250,6 +301,70 @@ func TestMergeCloseError(t *testing.T) {
 	if !errors.Is(result, nextErr) {
 		t.Fatalf("expected new error when base is nil")
 	}
+}
+
+func TestNewOpenAIFormatter_Success(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_MODEL", "")
+	t.Setenv("OPENAI_BASE_URL", "")
+
+	stub := &stubFormatter{}
+	origFactory := openaiFormatterFactory
+	openaiFormatterFactory = func(apiKey, model, baseURL string) (llm.Formatter, func() error, error) {
+		if apiKey != "test-key" {
+			t.Fatalf("unexpected api key: %s", apiKey)
+		}
+		if model != "gpt-4o-mini" {
+			t.Fatalf("expected default model, got %s", model)
+		}
+		return stub, stub.Close, nil
+	}
+	defer func() { openaiFormatterFactory = origFactory }()
+
+	formatter, closer, err := newOpenAIFormatter()
+	if err != nil {
+		t.Fatalf("newOpenAIFormatter returned error: %v", err)
+	}
+	if formatter != stub {
+		t.Fatalf("expected stub formatter")
+	}
+	if closer == nil {
+		t.Fatalf("expected close function")
+	}
+}
+
+func TestNewOpenAIFormatter_MissingConfig(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "")
+	if _, _, err := newOpenAIFormatter(); err == nil {
+		t.Fatalf("expected error when OPENAI_API_KEY is missing")
+	}
+}
+
+func setRequiredFirestoreEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/service-account.json")
+}
+
+func stubJobQueueFactory(t *testing.T) func() {
+	t.Helper()
+	orig := jobQueueFactory
+	jobQueueFactory = func(infra *Infra) (queue.JobQueue, error) {
+		return &noopJobQueue{}, nil
+	}
+	return func() { jobQueueFactory = orig }
+}
+
+func stubDrawRepositoryFactory(t *testing.T, repo repository.DrawRepository, retErr error) func() {
+	t.Helper()
+	orig := drawRepositoryFactory
+	drawRepositoryFactory = func(ctx context.Context, infra *Infra) (repository.DrawRepository, error) {
+		if retErr != nil {
+			return nil, retErr
+		}
+		return repo, nil
+	}
+	return func() { drawRepositoryFactory = orig }
 }
 
 type stubFormatter struct {
@@ -291,26 +406,38 @@ func (s *stubJobQueue) Close() error {
 	return s.closeErr
 }
 
+type noopJobQueue struct{}
+
+func (noopJobQueue) EnqueueFormat(ctx context.Context, id post.DarkPostID) error {
+	return nil
+}
+
+func (noopJobQueue) DequeueFormat(ctx context.Context) (post.DarkPostID, error) {
+	return "", nil
+}
+
+func (noopJobQueue) Close() error {
+	return nil
+}
+
 var _ llm.Formatter = (*stubFormatter)(nil)
 var _ queue.JobQueue = (*stubJobQueue)(nil)
-var _ repository.PostRepository = (*failingPostRepository)(nil)
+var _ repository.PostRepository = (*workerStubPostRepository)(nil)
 
-type failingPostRepository struct {
-	createErr error
+type workerStubPostRepository struct{}
+
+func (workerStubPostRepository) Create(ctx context.Context, p *post.Post) error {
+	return nil
 }
 
-func (f failingPostRepository) Create(ctx context.Context, p *post.Post) error {
-	return f.createErr
-}
-
-func (f failingPostRepository) Get(ctx context.Context, id post.DarkPostID) (*post.Post, error) {
+func (workerStubPostRepository) Get(ctx context.Context, id post.DarkPostID) (*post.Post, error) {
 	return nil, repository.ErrPostNotFound
 }
 
-func (f failingPostRepository) ListReady(ctx context.Context, limit int) ([]*post.Post, error) {
+func (workerStubPostRepository) ListReady(ctx context.Context, limit int) ([]*post.Post, error) {
 	return nil, nil
 }
 
-func (f failingPostRepository) Update(ctx context.Context, p *post.Post) error {
+func (workerStubPostRepository) Update(ctx context.Context, p *post.Post) error {
 	return repository.ErrPostNotFound
 }

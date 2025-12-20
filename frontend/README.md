@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# フロントエンド README
 
-## Getting Started
+Next.js（App Router）+ TypeScript のフロントエンドです。ディレクトリ構成は以下の記事を参考に整理しています。  
 
-First, run the development server:
+- [Next.js 最適フォルダ(ディレクトリ)構成・設計の話](https://zenn.dev/yamu_official/articles/70f59488e8415d)
+
+## 起動手順
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで `http://localhost:3000` を開くと画面を確認できます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ディレクトリ構成
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`src/app` を中心に、必要なディレクトリを次のように整理しています。
 
-## Learn More
+```
+frontend/
+├── public/                  # 画像などの静的アセット
+└── src/
+    ├── app/                 # ルーティング・ページ・レイアウト・サーバーアクション
+    ├── components/          # 再利用する UI 部品
+    ├── hooks/               # カスタムフック（use~ 系）
+    ├── lib/                 # API クライアントや外部ライブラリ設定
+    ├── utils/               # use~ 以外の汎用処理
+    ├── styles/              # グローバル CSS やテーマ
+    ├── types/               # 型定義
+    ├── stores/              # グローバルステート
+    └── constants/           # 定数
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 各ディレクトリの役割
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `app`: 画面ルーティング、レイアウト、ページ、サーバーアクションを配置する。
+- `components`: 汎用 UI 部品やレイアウト部品を置く（Atomic Design でも UI/Layout 分離でも可）。
+- `hooks`: UI から切り出した再利用ロジック（`use~`）をまとめる。
+- `lib`: API クライアントやライブラリ初期化など、外部依存の薄いラッパーを置く。
+- `utils`: `use~` ではない汎用関数を集約する。
+- `styles`: 全体に効かせる CSS やテーマ関連を置く（`app/globals.css` でも可）。
+- `types`: UI / API などの型定義をまとめる。
+- `stores`: 画面全体で共有する状態を管理する。
+- `constants`: 変更が少ない固定値を置く。
+- `public`: 静的ファイル（画像・フォントなど）を置く。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## テスト指針
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- UI: React Testing Library 等によるコンポーネント統合テストを基本とし、主要フローは E2E（例: Playwright）でカバーする。
+- lib: API クライアントはモックサーバーを使った統合テストで契約とハンドリングを確認する。

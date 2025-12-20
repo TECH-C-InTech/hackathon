@@ -185,6 +185,15 @@ go run ./cmd/api
 curl -i localhost:8080/draws/random
 ```
 
+## 開発時の同時起動
+
+API と Worker を同時に動かす場合は、別ターミナルで Worker を起動してください。
+
+```
+cd backend
+go run ./cmd/worker
+```
+
 環境変数 `DRAW_REPOSITORY_MODE` によりリポジトリの挙動を切り替えられます。  
 
 | モード | 起動例 | 期待されるレスポンス |
@@ -201,31 +210,44 @@ API / Worker から Firestore を利用する際は、`internal/app` が 1 度�
 
 | 変数名 | 役割 |
 | --- | --- |
-| `GOOGLE_CLOUD_PROJECT` | Firestore を利用する GCP プロジェクト ID（必須） |
-| `GOOGLE_APPLICATION_CREDENTIALS` | 本番・Staging などで用いるサービスアカウント JSON のパス（エミュレータ利用時は不要） |
-| `FIRESTORE_EMULATOR_HOST` | Firestore Emulator を利用する場合のホスト名（例: `localhost:8080`） |
-| `WORKER_POST_REPOSITORY` | `firestore` を指定するとワーカーが Firestore PostRepository を利用（未設定時はメモリ実装） |
+| `GOOGLE_CLOUD_PROJECT` | Firestore を利用する GCP / Firebase プロジェクト ID（必須） |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Firestore へ接続するサービスアカウント JSON のパス（必須） |
+| `FIRESTORE_EMULATOR_HOST` | Firestore Emulator を利用する場合のホスト名（Worker など開発用） |
+| `GEMINI_API_KEY` | Gemini formatter を使用する際の API キー |
+| `GEMINI_MODEL` | 利用する Gemini モデル名（未設定時は `gemini-2.5-flash`） |
+| `OPENAI_API_KEY` | OpenAI formatter を使用する際の API キー |
+| `OPENAI_MODEL` | 利用する OpenAI モデル名（未設定時は `gpt-4o-mini`） |
+| `OPENAI_BASE_URL` | OpenAI 互換エンドポイントを使う場合の Base URL（通常は空で OK） |
+| `LLM_PROVIDER` | `openai` / `gemini` を指定して使用する LLM を切り替え（未設定時は `openai`） |
 
-`GOOGLE_CLOUD_PROJECT` が未設定の場合は Firestore クライアントは初期化されません（メモリ実装のみで動作）。
+`GOOGLE_CLOUD_PROJECT` / `GOOGLE_APPLICATION_CREDENTIALS` が未設定の場合、Infra の初期化が失敗し API / Worker は起動しません。Worker も API と同様に Firestore リポジトリ固定のため、必ず同じ環境変数を用意してください。JobQueue も Firestore 固定 (`format_jobs` コレクション) のため、切り替え用の環境変数は存在しません。
 
-### ローカル開発（Firestore Emulator）
+### API を Firestore へ接続する（エミュレータ非対応）
 
-1. Firestore Emulator を起動  
-   `gcloud beta emulators firestore start --host-port=localhost:8080`
-2. 別ターミナルで環境変数をエクスポート  
+1. Firebase もしくは GCP で Firestore を有効化し、API から投稿を書き込むプロジェクト ID を決める。
+2. 対象プロジェクトでサービスアカウント（Cloud Datastore User 権限以上）を作成し、JSON キーをダウンロードする。
+3. JSON キーはリポジトリ外もしくは `.gitignore` に含まれるパス（例: `backend/service-account.json`）へ保存する。
+4. `.env` またはシェルに以下を設定する。
    ```bash
-   export GOOGLE_CLOUD_PROJECT=dark-fortune-dev
-   export FIRESTORE_EMULATOR_HOST=localhost:8080
+   GOOGLE_CLOUD_PROJECT=your-project-id
+   GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
    ```
-3. 必要に応じて API / Worker を起動  
-   `go run ./cmd/api`
+5. API を起動する。
+   ```bash
+   cd backend
+   go run ./cmd/api
+   ```
+   必須環境変数が欠けている場合は起動時にエラーで停止する。
+6. 別ターミナルから投稿を作り、Firestore `posts` コレクションに反映されることを確認する。
+   ```bash
+   curl -i -X POST http://localhost:8080/posts \
+     -H "Content-Type: application/json" \
+     -d '{"post_id":"post-123","content":"闇の投稿です"}'
+   ```
 
-### 本番・リモート環境
+> API は Firestore Emulator をサポートしていません。常に本番と同じ Firestore（サービスアカウント JSON 経由）へ接続してください。
 
-1. Firestore を利用するプロジェクト ID を `GOOGLE_CLOUD_PROJECT` に設定。
-2. 対象サービスアカウント JSON のパスを `GOOGLE_APPLICATION_CREDENTIALS` に設定。
-3. `FIRESTORE_EMULATOR_HOST` は未設定（実サービス接続）。
-4. `go run ./cmd/api` もしくはビルド済みバイナリを実行。
+ワーカーも同じ Firestore を共有します。Firestore 待ち受けが未設定のまま `go run ./cmd/worker` を起動した場合はエラーで即終了するため、API と同じく `GOOGLE_CLOUD_PROJECT` / `GOOGLE_APPLICATION_CREDENTIALS` を先に指定してください。
 
 ### コレクションスキーマ
 
@@ -249,15 +271,78 @@ go run ./cmd/seed
 
 ## ワーカー起動方法
 
-Gemini API キーなどを `.env`（`backend/.env.example` を参照）に設定した上で、以下のコマンドで整形ワーカーを起動できます。
+`.env`（`backend/.env.example`）に LLM の API キー等を設定した上で、以下のコマンドで整形ワーカーを起動できます。
 
 ```
 cd backend
 go run ./cmd/worker
 ```
 
-整形キューを監視し、取得した投稿を Gemini で整形して公開準備へ進めます。
-FireStore を接続する場合は `WORKER_POST_REPOSITORY=firestore` を設定し、Firestore クライアントが初期化されている必要があります。
+整形キューを監視し、`LLM_PROVIDER` で指定した LLM（`openai` が既定）で整形して公開準備へ進めます。`LLM_PROVIDER=gemini` を設定すると Gemini 実装に切り替わります。
+
+Worker でも Firestore への書き込みが必須のため、API 起動時と同じ環境変数を設定してから実行してください。
+
+```bash
+cd backend
+export GOOGLE_CLOUD_PROJECT=your-project-id
+export GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+go run ./cmd/worker
+```
+
+### 投稿〜整形までの動作確認
+
+1. すべてのターミナルで Firestore 関連の環境変数を設定する。
+   ```bash
+   export GOOGLE_CLOUD_PROJECT=your-project-id
+   export GOOGLE_APPLICATION_CREDENTIALS=$PWD/service-account.json
+   export OPENAI_API_KEY=sk-xxx        # ダミーキーでも可
+   export LLM_PROVIDER=openai          # Gemini を使う場合は gemini
+   ```
+2. ターミナル A で API を起動する。
+   ```bash
+   go run ./cmd/api
+   ```
+3. ターミナル B で Worker を起動する。起動後に `worker started (pending format)` が出力されれば待機状態。
+   ```bash
+   go run ./cmd/worker
+   ```
+4. ターミナル C から投稿 API を叩いてジョブを enqueue する。
+   ```bash
+   curl -i -X POST http://localhost:8080/posts \
+     -H "Content-Type: application/json" \
+     -d '{"post_id":"post-firestore-check","content":"Firestore への書き込み確認"}'
+   ```
+5. Firestore `format_jobs/post-firestore-check` が追加され、Worker のログに以下いずれかが出力されればジョブを取得できている。
+   ```
+   2025/12/20 12:34:56 formatted post: post-firestore-check
+   # もしくは LLM の鍵がダミーの場合
+   2025/12/20 12:34:56 format error (post=post-firestore-check): format_pending: 整形サービスに接続できません
+   ```
+   LLM の鍵が有効なら `posts/post-firestore-check` の `status` が `ready` へ更新され、`format_jobs` からドキュメントが削除される。
+
+### LLM ごとの設定例
+
+1. **OpenAI を使う場合（既定）**
+   ```bash
+   cd backend
+   export OPENAI_API_KEY=sk-xxx
+   export OPENAI_MODEL=gpt-4o-mini # 省略可
+   export LLM_PROVIDER=openai
+   go run ./cmd/worker
+   ```
+
+2. **Gemini を使う場合**
+   ```bash
+   cd backend
+   export GEMINI_API_KEY=xxxx
+   export GEMINI_MODEL=gemini-2.5-flash # 省略可
+   export LLM_PROVIDER=gemini
+   go run ./cmd/worker
+   ```
+### 投稿→整形→draw 生成フロー
+
+投稿 API から整形ワーカー、draw 公開までの処理を図にしたメモを `docs/draw_flow.md` に置いています。  
+投稿保存→`format_jobs` キュー→FormatPendingUsecase→`draws` の流れや、手動検証手順の参考にしてください。
 
 ---
 
