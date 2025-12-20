@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 import { createPost } from "@/lib/posts";
 
 type Step = "input" | "loading" | "result" | "error";
