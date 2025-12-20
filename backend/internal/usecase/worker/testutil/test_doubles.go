@@ -12,10 +12,12 @@ import (
 
 // テストで投稿取得を差し替えるための簡易リポジトリ。
 type StubPostRepository struct {
-	Store     map[post.DarkPostID]*post.Post
-	GetErr    error
-	UpdateErr error
-	Updated   *post.Post
+	Store       map[post.DarkPostID]*post.Post
+	GetErr      error
+	UpdateErr   error
+	Updated     *post.Post
+	UpdateErrs  []error
+	UpdateCalls int
 }
 
 /**
@@ -61,6 +63,12 @@ func (r *StubPostRepository) ListReady(ctx context.Context, limit int) ([]*post.
  * 更新内容を覚えて、必要ならエラーを返す。
  */
 func (r *StubPostRepository) Update(ctx context.Context, p *post.Post) error {
+	r.UpdateCalls++
+	if idx := r.UpdateCalls - 1; idx < len(r.UpdateErrs) {
+		if err := r.UpdateErrs[idx]; err != nil {
+			return err
+		}
+	}
 	if r.UpdateErr != nil {
 		return r.UpdateErr
 	}
