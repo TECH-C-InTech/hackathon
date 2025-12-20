@@ -182,14 +182,11 @@ export default function HomePage() {
                 <textarea
                   className="min-h-[140px] w-full resize-none rounded-2xl border border-zinc-200 px-4 py-3 text-sm outline-none"
                   maxLength={140}
-                  placeholder="ここに闇を投げる（最大140字）"
+                  placeholder="ここに闇を投げる"
                   value={content}
                   onChange={handleContentChange}
                   ref={inputRef}
                 />
-                <div className="text-right text-xs text-zinc-500">
-                  {contentLength}/140
-                </div>
                 <button
                   className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
                   type="button"
