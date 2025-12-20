@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   type ChangeEvent,
   useCallback,
@@ -149,15 +150,25 @@ export default function HomePage() {
       <div className="flex w-full max-w-xl flex-col items-center gap-4">
         <h1 className="font-semibold text-xl">きらくじ（仮UI）</h1>
         <button
-          className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white transition hover:bg-zinc-800"
+          className="rounded-3xl p-2 transition hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-900 focus-visible:outline-offset-4"
           type="button"
           ref={triggerButtonRef}
+          aria-label="闇を投げる"
+          title="闇を投げる"
           onClick={() => {
             setIsModalOpen(true);
             handleRetry({ clearContent: true });
           }}
         >
-          闇を投げる
+          <Image
+            src="/hurt_normal.png"
+            alt=""
+            width={220}
+            height={220}
+            className="h-auto w-[200px] md:w-[220px]"
+            priority
+          />
+          <span className="sr-only">闇を投げる</span>
         </button>
       </div>
 
@@ -239,12 +250,21 @@ export default function HomePage() {
                   お告げを捧げました。きらくじを受け取りますか？
                 </p>
                 <button
-                  className="rounded-full bg-zinc-900 px-6 py-3 font-semibold text-sm text-white"
+                  className="mx-auto rounded-3xl p-2 transition hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-900 focus-visible:outline-offset-4"
                   type="button"
+                  aria-label="闇を引く"
+                  title="闇を引く"
                   onClick={handleDraw}
                   disabled={currentStep === "loading"}
                 >
-                  受け取る
+                  <Image
+                    src="/hurt_dark.png"
+                    alt=""
+                    width={200}
+                    height={200}
+                    className="h-auto w-[180px] md:w-[200px]"
+                  />
+                  <span className="sr-only">闇を引く</span>
                 </button>
               </section>
             )}
