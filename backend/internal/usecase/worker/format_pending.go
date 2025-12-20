@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
@@ -22,6 +23,8 @@ var (
 	ErrNilUsecase           = errors.New("format_pending: ユースケースが初期化されていません")
 	ErrNilContext           = errors.New("format_pending: コンテキストが指定されていません")
 )
+
+const maxDrawResultLength = 400
 
 // 整形待ち投稿の整形から公開準備までを担う。
 type FormatPendingUsecase struct {
@@ -91,7 +94,8 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return nil
 	}
 
-	drawEntity, err := drawdomain.New(p.ID(), validated.FormattedContent)
+	drawContent := normalizeDrawContent(validated.FormattedContent)
+	drawEntity, err := drawdomain.New(p.ID(), drawContent)
 	if err != nil {
 		return err
 	}
@@ -108,4 +112,13 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 	}
 
 	return u.postRepo.Update(ctx, p)
+}
+
+func normalizeDrawContent(content drawdomain.FormattedContent) drawdomain.FormattedContent {
+	trimmed := strings.TrimSpace(string(content))
+	runes := []rune(trimmed)
+	if len(runes) > maxDrawResultLength {
+		trimmed = string(runes[:maxDrawResultLength])
+	}
+	return drawdomain.FormattedContent(trimmed)
 }

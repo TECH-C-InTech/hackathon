@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	drawdomain "backend/internal/domain/draw"
@@ -243,5 +244,39 @@ func TestFormatPendingUsecase_DrawCreateFailed(t *testing.T) {
 	}
 	if len(drawRepo.Created) != 0 {
 		t.Fatalf("draw should not be recorded when create fails")
+	}
+}
+
+func TestFormatPendingUsecase_DrawContentTrimmedAndLimited(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := testutil.NewStubPostRepository(p)
+	drawRepo := &testutil.StubDrawRepository{}
+	raw := drawdomain.FormattedContent("  \n" + strings.Repeat("運", maxDrawResultLength+5) + "  ")
+
+	usecase := NewFormatPendingUsecase(repo, drawRepo, &testutil.StubFormatter{
+		FormatResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusPending,
+			FormattedContent: raw,
+		},
+		ValidateResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusVerified,
+			FormattedContent: raw,
+		},
+	}, testutil.StubJobQueue{})
+
+	if err := usecase.Execute(context.Background(), "post-1"); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+	if len(drawRepo.Created) != 1 {
+		t.Fatalf("expected draw creation")
+	}
+	resultRunes := []rune(string(drawRepo.Created[0].Result()))
+	if len(resultRunes) != maxDrawResultLength {
+		t.Fatalf("expected trimmed result length %d, got %d", maxDrawResultLength, len(resultRunes))
+	}
+	if resultRunes[0] != '運' || resultRunes[len(resultRunes)-1] != '運' {
+		t.Fatalf("expected spaces and newlines to be trimmed")
 	}
 }
