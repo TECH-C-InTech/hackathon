@@ -7,6 +7,9 @@ type Step = "input" | "loading" | "result";
 export default function Home() {
   const [currentStep, setCurrentStep] = useState<Step>("input");
   const [content, setContent] = useState("");
+  const [resultText] = useState(
+    "今日のきらくじ: ここに結果テキストが入ります。",
+  );
   const contentLength = content.length;
   const trimmedLength = content.trim().length;
   const isSubmitDisabled = trimmedLength === 0 || contentLength > 140;
@@ -82,9 +85,7 @@ export default function Home() {
 
         {currentStep === "result" && (
           <section className="flex flex-col gap-4 text-center">
-            <p className="font-medium text-base">
-              今日のきらくじ: ここに結果テキストが入ります。
-            </p>
+            <p className="font-medium text-base">{resultText}</p>
             <button
               className="rounded-full border border-zinc-300 px-6 py-3 font-semibold text-sm text-zinc-700"
               type="button"
