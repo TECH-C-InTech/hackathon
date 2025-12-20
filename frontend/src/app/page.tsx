@@ -68,7 +68,12 @@ export default function Home() {
             <p className="font-medium text-base">
               少し待っていて、あなたのためのお告げを探すから。
             </p>
-            <div className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-zinc-200">
+            <div
+              className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-zinc-200"
+              role="progressbar"
+              aria-busy="true"
+              aria-label="きらくじを引いています"
+            >
               <div className="h-full w-1/3 animate-pulse rounded-full bg-zinc-700" />
             </div>
             <p className="text-sm text-zinc-500">きらくじを引いています...</p>
