@@ -70,13 +70,20 @@ func (r *StubPostRepository) Update(ctx context.Context, p *post.Post) error {
 
 var _ repository.PostRepository = (*StubPostRepository)(nil)
 
-// DrawRepository を埋めるだけの簡易スタブ。
-type StubDrawRepository struct{}
+// DrawRepository を埋めるだけの簡易モック。
+type StubDrawRepository struct {
+	Created   []*drawdomain.Draw
+	CreateErr error
+}
 
 /**
- * Create 呼び出しを無視する。
+ * Create 呼び出しを記録しつつ、必要ならエラーを返す。
  */
-func (StubDrawRepository) Create(ctx context.Context, d *drawdomain.Draw) error {
+func (s *StubDrawRepository) Create(ctx context.Context, d *drawdomain.Draw) error {
+	if s.CreateErr != nil {
+		return s.CreateErr
+	}
+	s.Created = append(s.Created, d)
 	return nil
 }
 

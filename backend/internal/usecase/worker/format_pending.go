@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
@@ -18,9 +19,12 @@ var (
 	ErrPostNotFound         = errors.New("format_pending: 投稿が存在しません")
 	ErrFormatterUnavailable = errors.New("format_pending: 整形サービスに接続できません")
 	ErrContentRejected      = errors.New("format_pending: 投稿内容が拒否されました")
+	ErrDrawCreationFailed   = errors.New("format_pending: おみくじ結果を保存できませんでした")
 	ErrNilUsecase           = errors.New("format_pending: ユースケースが初期化されていません")
 	ErrNilContext           = errors.New("format_pending: コンテキストが指定されていません")
 )
+
+const maxDrawResultLength = 400
 
 // 整形待ち投稿の整形から公開準備までを担う。
 type FormatPendingUsecase struct {
@@ -95,5 +99,28 @@ func (u *FormatPendingUsecase) Execute(ctx context.Context, postID string) error
 		return fmt.Errorf("%w: %v", ErrPostNotPending, err)
 	}
 
-	return u.postRepo.Update(ctx, p)
+	if err := u.postRepo.Update(ctx, p); err != nil {
+		return err
+	}
+
+	drawContent := normalizeDrawContent(validated.FormattedContent)
+	drawEntity, err := drawdomain.FromPost(p, drawContent)
+	if err != nil {
+		return err
+	}
+	drawEntity.MarkVerified()
+	if err := u.drawRepo.Create(ctx, drawEntity); err != nil {
+		return fmt.Errorf("%w: %v", ErrDrawCreationFailed, err)
+	}
+
+	return nil
+}
+
+func normalizeDrawContent(content drawdomain.FormattedContent) drawdomain.FormattedContent {
+	trimmed := strings.TrimSpace(string(content))
+	runes := []rune(trimmed)
+	if len(runes) > maxDrawResultLength {
+		trimmed = string(runes[:maxDrawResultLength])
+	}
+	return drawdomain.FormattedContent(trimmed)
 }
