@@ -96,7 +96,6 @@ func (q *FirestoreJobQueue) DequeueFormat(ctx context.Context) (post.DarkPostID,
 		}
 		id, err := q.dequeueOnce(ctx)
 		if err == nil {
-			waitInterval = pollIntervalMin
 			return id, nil
 		}
 		// ジョブがまだ用意されていない場合は停止指示を監視しながら待機して再試行する
