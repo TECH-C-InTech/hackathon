@@ -88,7 +88,10 @@ export default function Home() {
             <button
               className="rounded-full border border-zinc-300 px-6 py-3 font-semibold text-sm text-zinc-700"
               type="button"
-              onClick={() => setCurrentStep("input")}
+              onClick={() => {
+                setErrorMessage("");
+                setCurrentStep("input");
+              }}
             >
               もう一度懺悔する
             </button>
@@ -101,7 +104,10 @@ export default function Home() {
             <button
               className="rounded-full border border-red-200 px-6 py-3 font-semibold text-red-700 text-sm"
               type="button"
-              onClick={() => setCurrentStep("input")}
+              onClick={() => {
+                setErrorMessage("");
+                setCurrentStep("input");
+              }}
             >
               入力画面へ戻る
             </button>
