@@ -18,7 +18,8 @@ import (
 const (
 	formatJobsCollection = "format_jobs"
 	jobStatusPending     = "pending"
-	pollInterval         = 200 * time.Millisecond
+	pollIntervalMin      = 3 * time.Minute
+	pollIntervalMax      = 5 * time.Minute
 )
 
 var (
@@ -88,6 +89,7 @@ func (q *FirestoreJobQueue) EnqueueFormat(ctx context.Context, id post.DarkPostI
  * Firestore 上で最も古い整形待ちを 1 件だけ取得し、見つかるまで待機を繰り返す。
  */
 func (q *FirestoreJobQueue) DequeueFormat(ctx context.Context) (post.DarkPostID, error) {
+	waitInterval := pollIntervalMin
 	for {
 		if err := q.ensureReady(ctx); err != nil {
 			return "", err
@@ -103,7 +105,8 @@ func (q *FirestoreJobQueue) DequeueFormat(ctx context.Context) (post.DarkPostID,
 				return "", fmt.Errorf("%w: %v", queue.ErrContextClosed, ctx.Err())
 			case <-q.closedCh:
 				return "", queue.ErrQueueClosed
-			case <-time.After(pollInterval):
+			case <-time.After(waitInterval):
+				waitInterval = nextPollInterval(waitInterval)
 				continue
 			}
 		}
@@ -203,6 +206,17 @@ func translateContextError(err error) error {
 		return fmt.Errorf("%w: %v", queue.ErrContextClosed, err)
 	}
 	return err
+}
+
+func nextPollInterval(current time.Duration) time.Duration {
+	next := current * 2
+	if next > pollIntervalMax {
+		return pollIntervalMax
+	}
+	if next < pollIntervalMin {
+		return pollIntervalMin
+	}
+	return next
 }
 
 var _ queue.JobQueue = (*FirestoreJobQueue)(nil)
