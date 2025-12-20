@@ -9,6 +9,7 @@ import (
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
 	"backend/internal/port/llm"
+	"backend/internal/port/queue"
 	"backend/internal/usecase/worker/testutil"
 )
 
@@ -126,8 +127,8 @@ func TestFormatPendingUsecase_UpdateFailed(t *testing.T) {
 	if err == nil || !errors.Is(err, repo.UpdateErr) {
 		t.Fatalf("expected update error, got %v", err)
 	}
-	if len(drawRepo.Created) != 0 {
-		t.Fatalf("draw should not be created when update fails")
+	if len(drawRepo.Created) != 1 {
+		t.Fatalf("expected draw to be created before update")
 	}
 }
 
@@ -230,6 +231,7 @@ func TestFormatPendingUsecase_DrawCreateFailed(t *testing.T) {
 	drawRepo := &testutil.StubDrawRepository{
 		CreateErr: errors.New("draw create failed"),
 	}
+	jobQueue := &recordingJobQueue{}
 	usecase := NewFormatPendingUsecase(repo, drawRepo, &testutil.StubFormatter{
 		FormatResult: &llm.FormatResult{DarkPostID: p.ID()},
 		ValidateResult: &llm.FormatResult{
@@ -237,17 +239,20 @@ func TestFormatPendingUsecase_DrawCreateFailed(t *testing.T) {
 			Status:           drawdomain.StatusVerified,
 			FormattedContent: "formatted",
 		},
-	}, testutil.StubJobQueue{})
+	}, jobQueue)
 
 	err := usecase.Execute(context.Background(), "post-1")
 	if !errors.Is(err, ErrDrawCreationFailed) {
 		t.Fatalf("expected ErrDrawCreationFailed, got %v", err)
 	}
-	if repo.Updated == nil || repo.Updated.Status() != post.StatusReady {
-		t.Fatalf("post should be marked ready even when draw creation fails")
+	if repo.Updated != nil {
+		t.Fatalf("post should not be updated when draw creation fails")
 	}
 	if len(drawRepo.Created) != 0 {
 		t.Fatalf("draw should not be recorded when create fails")
+	}
+	if len(jobQueue.enqueued) != 1 || jobQueue.enqueued[0] != p.ID() {
+		t.Fatalf("expected post to be requeued once")
 	}
 }
 
@@ -282,5 +287,56 @@ func TestFormatPendingUsecase_DrawContentTrimmedAndLimited(t *testing.T) {
 	}
 	if resultRunes[0] != '運' || resultRunes[len(resultRunes)-1] != '運' {
 		t.Fatalf("expected spaces and newlines to be trimmed")
+	}
+}
+
+type recordingJobQueue struct {
+	enqueued   []post.DarkPostID
+	enqueueErr error
+}
+
+func (q *recordingJobQueue) EnqueueFormat(ctx context.Context, id post.DarkPostID) error {
+	if q.enqueueErr != nil {
+		return q.enqueueErr
+	}
+	q.enqueued = append(q.enqueued, id)
+	return nil
+}
+
+func (*recordingJobQueue) DequeueFormat(ctx context.Context) (post.DarkPostID, error) {
+	return "", queue.ErrQueueClosed
+}
+
+func (*recordingJobQueue) Close() error {
+	return nil
+}
+
+func TestFormatPendingUsecase_DrawCreateFailed_RequeueError(t *testing.T) {
+	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	repo := testutil.NewStubPostRepository(p)
+	drawRepo := &testutil.StubDrawRepository{
+		CreateErr: errors.New("draw create failed"),
+	}
+	jobQueue := &recordingJobQueue{
+		enqueueErr: errors.New("queue down"),
+	}
+	usecase := NewFormatPendingUsecase(repo, drawRepo, &testutil.StubFormatter{
+		FormatResult: &llm.FormatResult{DarkPostID: p.ID()},
+		ValidateResult: &llm.FormatResult{
+			DarkPostID:       p.ID(),
+			Status:           drawdomain.StatusVerified,
+			FormattedContent: "formatted",
+		},
+	}, jobQueue)
+
+	err := usecase.Execute(context.Background(), "post-1")
+	if !errors.Is(err, ErrRequeueFailed) {
+		t.Fatalf("expected ErrRequeueFailed, got %v", err)
+	}
+	if repo.Updated != nil {
+		t.Fatalf("post should not be updated when requeue fails")
+	}
+	if len(jobQueue.enqueued) != 0 {
+		t.Fatalf("requeue should not record success when enqueue fails")
 	}
 }
