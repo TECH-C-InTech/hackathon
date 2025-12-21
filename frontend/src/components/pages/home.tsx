@@ -265,10 +265,8 @@ export default function HomePage() {
       </div>
       <div className="-translate-y-[10px] relative z-20 flex w-full max-w-xl flex-col items-center gap-4 px-4 md:px-0">
         {!isModalOpen && (
-          <div className="-top-48 pointer-events-none absolute left-1/2 w-full max-w-xs -translate-x-1/2 border border-zinc-900/10 bg-white px-4 py-3 text-center text-sm text-zinc-900 shadow-sm">
-            <span className="sr-only">
-              {welcomeMessage}
-            </span>
+          <div className="-top-48 -translate-x-1/2 pointer-events-none absolute left-1/2 w-full max-w-xs border border-zinc-900/10 bg-white px-4 py-3 text-center text-sm text-zinc-900 shadow-sm">
+            <span className="sr-only">{welcomeMessage}</span>
             <span aria-hidden="true" className="kirakuji-typing-line">
               {welcomeLine}
             </span>
