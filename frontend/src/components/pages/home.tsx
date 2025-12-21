@@ -242,24 +242,24 @@ export default function HomePage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-0 py-0 font-sans text-zinc-900 md:px-0">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center opacity-70">
-        <div className="w-full md:max-w-xl">
+        <div className="w-full md:max-w-3xl">
           <Image
             src="/curtain.png"
             alt=""
             width={1440}
             height={480}
-            className="h-auto w-full object-top"
+            className="w-full object-top"
             priority
           />
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-0 z-10">
+      <div className="pointer-events-none absolute inset-x-0 inset-y-0 z-10 mx-auto w-full md:max-w-3xl">
         <Image
           src="/pome_illust_normal.png"
           alt="闇を投げるイラスト"
-          fill
-          sizes="100vw"
-          className="object-cover"
+          width={1440}
+          height={480}
+          className="h-full object-cover"
           priority
         />
       </div>
