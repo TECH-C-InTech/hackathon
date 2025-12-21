@@ -194,13 +194,7 @@ cd backend
 go run ./cmd/worker
 ```
 
-環境変数 `DRAW_REPOSITORY_MODE` によりリポジトリの挙動を切り替えられます。  
-
-| モード | 起動例 | 期待されるレスポンス |
-| --- | --- | --- |
-| (空) / `default` | `DRAW_REPOSITORY_MODE=default go run ./cmd/api` | Verified が存在するため `200 OK` |
-| `empty` | `DRAW_REPOSITORY_MODE=empty go run ./cmd/api` | Verified が無く `404 Not Found`（`message=no verified draws available`） |
-| `error` | `DRAW_REPOSITORY_MODE=error go run ./cmd/api` | リポジトリ強制エラーで `500 Internal Server Error` |
+`/draws/random` は Firestore の verified draw を参照するため、データが無い場合は `404 Not Found` になります。動作確認は後述の `cmd/seed` を使って初期データを投入してください。
 
 ## Firestore 設定
 

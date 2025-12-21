@@ -8,7 +8,6 @@ import (
 
 	"backend/internal/adapter/http/handler"
 	firestoreadapter "backend/internal/adapter/repository/firestore"
-	memoryrepo "backend/internal/adapter/repository/memory"
 	drawdomain "backend/internal/domain/draw"
 	"backend/internal/domain/post"
 	"backend/internal/port/repository"
@@ -33,7 +32,7 @@ func NewContainer(ctx context.Context) (*Container, error) {
 		return nil, fmt.Errorf("init infra: %w", err)
 	}
 
-	repo, err := provideDrawRepository(ctx, infra)
+	repo, err := provideDrawRepository(infra)
 	if err != nil {
 		return nil, fmt.Errorf("provide draw repository: %w", err)
 	}
@@ -94,21 +93,12 @@ func newAPIPostRepository(infra *Infra) (repository.PostRepository, error) {
 	return repo, nil
 }
 
-func provideDrawRepository(ctx context.Context, infra *Infra) (repository.DrawRepository, error) {
+func provideDrawRepository(infra *Infra) (repository.DrawRepository, error) {
 	mode := os.Getenv("DRAW_REPOSITORY_MODE")
 	if mode == "error" {
 		return newFailingDrawRepository(), nil
 	}
-
-	if mode == "firestore" {
-		return newFirestoreDrawRepository(infra)
-	}
-
-	repo := memoryrepo.NewInMemoryDrawRepository()
-	if err := seedDraws(ctx, repo, mode); err != nil {
-		return nil, err
-	}
-	return repo, nil
+	return newFirestoreDrawRepository(infra)
 }
 
 func newFirestoreDrawRepository(infra *Infra) (repository.DrawRepository, error) {
@@ -118,37 +108,6 @@ func newFirestoreDrawRepository(infra *Infra) (repository.DrawRepository, error)
 	}
 	// Firestore 実装を初期化し、アダプター層経由で返す。
 	return firestoreadapter.NewDrawRepository(client)
-}
-
-func seedDraws(ctx context.Context, repo repository.DrawRepository, mode string) error {
-	samples := []struct {
-		id      string
-		content string
-		ready   bool
-	}{
-		{id: "post-verified", content: "すべてはうまくいくでしょう", ready: true},
-		{id: "post-pending", content: "しばらく待つと吉", ready: false},
-	}
-
-	if mode == "empty" {
-		for i := range samples {
-			samples[i].ready = false
-		}
-	}
-
-	for _, sample := range samples {
-		draw, err := drawdomain.New(post.DarkPostID(sample.id), drawdomain.FormattedContent(sample.content))
-		if err != nil {
-			return err
-		}
-		if sample.ready {
-			draw.MarkVerified()
-		}
-		if err := repo.Create(ctx, draw); err != nil && err != repository.ErrDrawAlreadyExists {
-			return err
-		}
-	}
-	return nil
 }
 
 type failingDrawRepository struct {
