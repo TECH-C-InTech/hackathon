@@ -316,9 +316,7 @@ export default function HomePage() {
         </div>
       )}
       {isTransitioning && (
-        <KirakujiTransitionOverlay
-          onAnimationComplete={completeTransition}
-        />
+        <KirakujiTransitionOverlay onAnimationComplete={completeTransition} />
       )}
     </div>
   );
