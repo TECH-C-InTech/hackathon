@@ -294,7 +294,7 @@ export default function HomePage() {
 
             {currentStep === "ready" && (
               <section className="relative flex flex-col gap-4 text-center">
-                <div className="absolute -top-48 left-1/2 w-full max-w-xs -translate-x-1/2 border border-zinc-900/10 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm">
+                <div className="-top-48 -translate-x-1/2 absolute left-1/2 w-full max-w-xs border border-zinc-900/10 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm">
                   <span className="sr-only">
                     きらくじを受け取る準備ができました。きらくじを受け取りますか？
                   </span>
