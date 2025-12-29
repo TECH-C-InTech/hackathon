@@ -132,10 +132,16 @@ func TestFormatPendingUsecase_UpdateFailed(t *testing.T) {
 	}
 }
 
+/**
+ * 非対象ステータスなら LLM検証 Draw作成 / 再キュー / 投稿更新が一切走らない
+ */
 func TestFormatPendingUsecase_PostNotPending(t *testing.T) {
-	p, _ := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	p, err := post.New(post.DarkPostID("post-1"), post.DarkContent("test"))
+	if err != nil {
+		t.Fatalf("投稿生成失敗: %v", err)
+	}
 	if err := p.MarkReady(); err != nil {
-		t.Fatalf("failed to mark ready: %v", err)
+		t.Fatalf("ready化失敗: %v", err)
 	}
 	repo := testutil.NewStubPostRepository(p)
 	drawRepo := &testutil.StubDrawRepository{}
@@ -150,7 +156,7 @@ func TestFormatPendingUsecase_PostNotPending(t *testing.T) {
 	jobQueue := &recordingJobQueue{}
 	usecase := NewFormatPendingUsecase(repo, drawRepo, formatter, jobQueue)
 
-	err := usecase.Execute(context.Background(), "post-1")
+	err = usecase.Execute(context.Background(), "post-1")
 	if !errors.Is(err, ErrPostNotPending) {
 		t.Fatalf("expected ErrPostNotPending, got %v", err)
 	}
