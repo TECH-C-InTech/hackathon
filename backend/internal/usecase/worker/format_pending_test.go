@@ -158,7 +158,7 @@ func TestFormatPendingUsecase_PostNotPending(t *testing.T) {
 
 	err = usecase.Execute(context.Background(), "post-1")
 	if !errors.Is(err, ErrPostNotPending) {
-		t.Fatalf("expected ErrPostNotPending, got %v", err)
+		t.Fatalf("ErrPostNotPending ではない: %v", err)
 	}
 	if formatter.FormatCalls != 0 {
 		t.Fatalf("整形処理が呼ばれてはいけません")
