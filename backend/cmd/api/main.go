@@ -30,7 +30,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("依存初期化失敗: %w", err)
 	}
-	
+
 	// 関数の終了時に依存リソースを閉じる
 	defer func() {
 		if closeErr := container.Close(); closeErr != nil {
